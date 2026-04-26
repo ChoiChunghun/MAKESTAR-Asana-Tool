@@ -1,0 +1,385 @@
+import type { AsanaCreateTasksRequest, AsanaCreateTasksResponse, CreatedAsanaTask } from "@/types/asana";
+import type { DueFields, OpenEventLabel, PreviewTaskRow, TaskKey } from "@/types/parser";
+import {
+  TASK_TYPE_NAME_ETC,
+  TASK_TYPE_NAME_MD,
+  TASK_TYPE_NAME_OPEN,
+  TASK_TYPE_NAME_PC,
+  TASK_TYPE_NAME_UPDATE,
+  TASK_TYPE_NAME_VMD
+} from "@/lib/parser/constants";
+import {
+  buildBenefitDescription,
+  buildOpenDescription,
+  buildPhotocardDescription,
+  buildUpdateDescription,
+  buildVmdDescription
+} from "@/lib/parser/descriptions";
+import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline";
+import { isValidGid } from "@/lib/parser/utils";
+import { asanaRequest, getCurrentUserGid, validateToken } from "./client";
+import { addTaskToSection, getFirstTaskInSection, getOrCreateSection } from "./sections";
+import {
+  buildBaseProgressFields,
+  buildTaskTypeOnlyFields,
+  setEventFieldOnTask
+} from "./customFields";
+
+type AsanaTaskPayload = {
+  name: string;
+  projects?: string[];
+  parent?: string;
+  assignee?: string;
+  due_on?: string;
+  due_at?: string;
+  notes?: string;
+  html_notes?: string;
+  followers?: string[];
+  custom_fields?: Record<string, string | string[]>;
+};
+
+type TaskCreateContext = {
+  request: AsanaCreateTasksRequest;
+  sectionGid: string;
+  rowMap: Map<TaskKey, PreviewTaskRow>;
+  createdTasks: CreatedAsanaTask[];
+  token: string;
+  projectGid: string;
+  requesterGid: string;   // 토큰 사용자 (부모 태스크 담당자)
+  designerGid: string;    // 디자인 서브태스크 담당자
+  topLevelTaskGids: string[];   // 섹션 최상단 정렬용 (생성 순서대로 push)
+  eventLabels: OpenEventLabel[]; // 이벤트 구분 커스텀 필드에 사용
+  followerGids: string[];        // 협업 참여자 — 모든 태스크에 일괄 적용
+  eventFieldErrors: string[];    // 이벤트 구분 필드 설정 실패 수집 (태스크 생성은 계속)
+};
+
+/** 이벤트 구분 필드 설정 실패 시 에러 메시지를 context에 수집하고 태스크 생성은 계속 진행 */
+async function safeSetEventField(
+  taskGid: string,
+  labels: OpenEventLabel[],
+  ctx: TaskCreateContext
+): Promise<void> {
+  try {
+    await setEventFieldOnTask(taskGid, labels, ctx.token);
+  } catch (e) {
+    ctx.eventFieldErrors.push(e instanceof Error ? e.message : "이벤트 구분 필드 설정 실패");
+  }
+}
+
+export async function createTasksFromPreview(
+  request: AsanaCreateTasksRequest
+): Promise<AsanaCreateTasksResponse> {
+  validateToken(request.asanaToken);
+  if (!isValidGid(request.projectGid)) throw new Error("Asana 프로젝트를 선택해주세요.");
+  if (!request.sectionName?.trim()) throw new Error("섹션명을 입력해주세요.");
+
+  const token = request.asanaToken;
+  const [sectionGid, requesterGid] = await Promise.all([
+    getOrCreateSection(request.projectGid, request.sectionName.trim(), token),
+    getCurrentUserGid(token).catch(() => "")
+  ]);
+  // 아티스트별 담당자 규칙 적용: 소속 아티스트명 매핑이 있으면 해당 designerGid 사용
+  const artistName = request.plan.normalizedData.artistName || "";
+  const artistRule = (request.artistDesignerMap || []).find(
+    (r) => r.artistName && artistName.toLowerCase().includes(r.artistName.toLowerCase())
+  );
+  const resolvedDesignerGid =
+    (artistRule && isValidGid(artistRule.designerGid))
+      ? artistRule.designerGid
+      : isValidGid(request.designerGid ?? "") ? (request.designerGid ?? "") : requesterGid;
+
+  const followerGids = (request.followerGids || []).filter(isValidGid);
+  const rowMap = new Map(request.rows.map((r) => [r.key, r]));
+
+  // 섹션에 현재 첫 번째 태스크 GID를 미리 파악 (신규 태스크를 그 앞에 삽입하기 위해)
+  const firstExistingGid = await getFirstTaskInSection(sectionGid, token);
+
+  const context: TaskCreateContext = {
+    request,
+    sectionGid,
+    rowMap,
+    createdTasks: [],
+    token,
+    projectGid: request.projectGid,
+    requesterGid,
+    designerGid: resolvedDesignerGid,
+    topLevelTaskGids: [],
+    eventLabels: request.plan.openContext.eventLabels,
+    followerGids,
+    eventFieldErrors: []
+  };
+
+  // ── 생성 순서: 당첨자 선정 → MD → VMD → 업데이트 → 오픈 ──────────────────
+  // 최종 표시 순서(역순): 오픈 (최상단) → 업데이트 → VMD → MD → 당첨자 선정
+  if (isEnabled(rowMap, "winner")) await createWinnerTask(context);
+  if (isEnabled(rowMap, "md")) await createMdTasks(context);
+  if (isEnabled(rowMap, "vmd")) await createVmdTask(context);
+  if (isEnabled(rowMap, "up")) await createUpdateTasks(context);
+  if (isEnabled(rowMap, "open")) await createOpenTasks(context);
+
+  // ── 섹션 최상단에 역순 배치 ───────────────────────────────────────────────
+  // 각 태스크를 동일한 anchor(firstExisting) 바로 앞에 순서대로 삽입.
+  // 나중에 삽입할수록 anchor 앞을 차지 → 마지막 생성(오픈)이 최상단.
+  const anchor = firstExistingGid ?? undefined;
+  for (let i = 0; i < context.topLevelTaskGids.length; i++) {
+    await addTaskToSection(context.topLevelTaskGids[i], sectionGid, token, anchor);
+  }
+
+  // 이벤트 구분 필드 설정 실패가 있었으면 에러로 던짐 (태스크는 이미 생성됨)
+  if (context.eventFieldErrors.length > 0) {
+    throw new Error(
+      `태스크는 생성됐지만 이벤트 구분 필드 설정에 실패했습니다: ${context.eventFieldErrors[0]}`
+    );
+  }
+
+  return {
+    projectGid: request.projectGid,
+    projectUrl: `https://app.asana.com/0/${request.projectGid}`,
+    sectionGid,
+    createdTasks: context.createdTasks
+  };
+}
+
+async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { summary } = request.plan;
+  const dueFields = getTaskDueFields(request.plan.normalizedData, "md");
+  const mdName = title(rowMap, "md", `[${summary.productCode}] MD`);
+  const pcName = title(rowMap, "pc", `[${summary.productCode}] 포토카드 / ${summary.photocards.length}세트 총 ${summary.photocardTotal}종`);
+  const spName = title(rowMap, "sp", `[${summary.productCode}] 특전 / ${summary.benefits.length}종 총 ${summary.benefitTotal}종`);
+
+  // ── MD 부모: 상태(진행) + 태스크 구분 ───────────────────────────────────
+  const mdPayload: AsanaTaskPayload = {
+    name: mdName,
+    projects: [projectGid],
+    assignee: requesterGid || undefined,
+    notes: '발주 후 "완료" 처리 부탁드립니다!',
+    custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_MD, token)
+  };
+  applyDue(mdPayload, dueFields);
+  applyFollowers(mdPayload, followerGids);
+  const mdGid = await createTask(mdPayload, token);
+  await safeSetEventField(mdGid, eventLabels, ctx);
+  ctx.topLevelTaskGids.push(mdGid);
+  record(ctx, "md", mdGid, mdName);
+
+  // ── 포토카드 서브: 태스크 구분 ──────────────────────────────────────────
+  if (summary.photocards.length > 0 && isEnabled(rowMap, "pc")) {
+    const pcPayload: AsanaTaskPayload = {
+      name: pcName,
+      parent: mdGid,
+      assignee: designerGid || undefined,
+      html_notes: buildPhotocardDescription(summary.photocards),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_PC, token)
+    };
+    applyDue(pcPayload, dueFields);
+    applyFollowers(pcPayload, followerGids);
+    const pcGid = await createTask(pcPayload, token);
+    await safeSetEventField(pcGid, eventLabels, ctx);
+    record(ctx, "pc", pcGid, pcName);
+  }
+
+  // ── 특전 서브: 태스크 구분 ───────────────────────────────────────────────
+  if (isEnabled(rowMap, "sp")) {
+    const spPayload: AsanaTaskPayload = {
+      name: spName,
+      parent: mdGid,
+      assignee: designerGid || undefined,
+      html_notes: buildBenefitDescription(summary.benefits),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_MD, token)
+    };
+    applyDue(spPayload, dueFields);
+    applyFollowers(spPayload, followerGids);
+    const spGid = await createTask(spPayload, token);
+    await safeSetEventField(spGid, eventLabels, ctx);
+    record(ctx, "sp", spGid, spName);
+  }
+}
+
+async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { summary } = request.plan;
+  const dueFields = getTaskDueFields(request.plan.normalizedData, "update");
+  const upName = title(rowMap, "up", `[${summary.productCode}] 업데이트`);
+  const upSubName = title(rowMap, "upsub", `[${summary.productCode}] 업데이트 / ${summary.photocards.length + summary.benefits.length}종`);
+
+  // ── 업데이트 부모: 상태(진행) + 태스크 구분 ─────────────────────────────
+  const upPayload: AsanaTaskPayload = {
+    name: upName,
+    projects: [projectGid],
+    assignee: requesterGid || undefined,
+    notes: 'SNS 발행 후 "완료" 처리 부탁드립니다!',
+    custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_UPDATE, token)
+  };
+  applyDue(upPayload, dueFields);
+  applyFollowers(upPayload, followerGids);
+  const upGid = await createTask(upPayload, token);
+  await safeSetEventField(upGid, eventLabels, ctx);
+  ctx.topLevelTaskGids.push(upGid);
+  record(ctx, "up", upGid, upName);
+
+  // ── 업데이트 서브: 상태(진행) + 태스크 구분 (부모와 동일 처리) ──────────
+  if (isEnabled(rowMap, "upsub")) {
+    const subPayload: AsanaTaskPayload = {
+      name: upSubName,
+      parent: upGid,
+      assignee: designerGid || undefined,
+      html_notes: buildUpdateDescription(summary.photocards, summary.benefits),
+      custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_UPDATE, token)
+    };
+    applyDue(subPayload, dueFields);
+    applyFollowers(subPayload, followerGids);
+    const subGid = await createTask(subPayload, token);
+    await safeSetEventField(subGid, eventLabels, ctx);
+    record(ctx, "upsub", subGid, upSubName);
+  }
+}
+
+async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { summary, openContext } = request.plan;
+  const dueFields = getTaskDueFields(request.plan.normalizedData, "open");
+  const openName = title(rowMap, "open", `[${summary.productCode}] 오픈`);
+  const designName = title(rowMap, "opendesign", `[${summary.productCode}] 오픈 디자인`);
+
+  // ── 오픈 부모: 상태(진행) + 태스크 구분 + 이벤트 구분 ───────────────────
+  const openPayload: AsanaTaskPayload = {
+    name: openName,
+    projects: [projectGid],
+    assignee: requesterGid || undefined,
+    notes: '페이지 작업 후 "완료" 처리 부탁드립니다!',
+    custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+  };
+  applyDue(openPayload, dueFields);
+  applyFollowers(openPayload, followerGids);
+  const openGid = await createTask(openPayload, token);
+  await safeSetEventField(openGid, openContext.eventLabels, ctx);
+  ctx.topLevelTaskGids.push(openGid);
+  record(ctx, "open", openGid, openName);
+
+  // ── 오픈 디자인 서브: 태스크 구분 + 이벤트 구분 ─────────────────────────
+  if (isEnabled(rowMap, "opendesign")) {
+    const designPayload: AsanaTaskPayload = {
+      name: designName,
+      parent: openGid,
+      assignee: designerGid || undefined,
+      html_notes: buildOpenDescription(openContext),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+    };
+    applyDue(designPayload, dueFields);
+    applyFollowers(designPayload, followerGids);
+    const designGid = await createTask(designPayload, token);
+    await safeSetEventField(designGid, openContext.eventLabels, ctx);
+    record(ctx, "opendesign", designGid, designName);
+  }
+}
+
+async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { summary, openContext } = request.plan;
+  const dueFields = getTaskDueFields(request.plan.normalizedData, "vmd");
+  const vmdName = title(rowMap, "vmd", `[${summary.productCode}] VMD`);
+  const subName = title(rowMap, "vmdsub", `[${summary.productCode}] VMD / (${openContext.vmdItemCount})종`);
+
+  // ── VMD 부모: 상태(진행) + 태스크 구분 ──────────────────────────────────
+  const vmdPayload: AsanaTaskPayload = {
+    name: vmdName,
+    projects: [projectGid],
+    assignee: requesterGid || undefined,
+    notes: '발주 후 "완료" 처리 부탁드립니다!',
+    custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_VMD, token)
+  };
+  applyDue(vmdPayload, dueFields);
+  applyFollowers(vmdPayload, followerGids);
+  const vmdGid = await createTask(vmdPayload, token);
+  await safeSetEventField(vmdGid, eventLabels, ctx);
+  ctx.topLevelTaskGids.push(vmdGid);
+  record(ctx, "vmd", vmdGid, vmdName);
+
+  // ── VMD 서브: 태스크 구분 ────────────────────────────────────────────────
+  if (isEnabled(rowMap, "vmdsub")) {
+    const subPayload: AsanaTaskPayload = {
+      name: subName,
+      parent: vmdGid,
+      assignee: designerGid || undefined,
+      html_notes: buildVmdDescription(openContext),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_VMD, token)
+    };
+    applyDue(subPayload, dueFields);
+    applyFollowers(subPayload, followerGids);
+    const subGid = await createTask(subPayload, token);
+    await safeSetEventField(subGid, eventLabels, ctx);
+    record(ctx, "vmdsub", subGid, subName);
+  }
+}
+
+async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
+  const { request, rowMap, token, projectGid, requesterGid, eventLabels, followerGids } = ctx;
+  const { summary } = request.plan;
+  const dueFields = getWinnerDueFields(request.plan.normalizedData);
+  const winnerName = title(rowMap, "winner", `[${summary.productCode}] 당첨자 선정`);
+
+  // ── 당첨자 선정: 상태(진행) + 태스크 구분(기타) ─────────────────────────
+  const payload: AsanaTaskPayload = {
+    name: winnerName,
+    projects: [projectGid],
+    assignee: requesterGid || undefined,
+    notes: "당첨자 관련 업무 스케줄링을 위한 태스크입니다!",
+    custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_ETC, token)
+  };
+  applyDue(payload, dueFields);
+  applyFollowers(payload, followerGids);
+  const gid = await createTask(payload, token);
+  await safeSetEventField(gid, eventLabels, ctx);
+  ctx.topLevelTaskGids.push(gid);
+  record(ctx, "winner", gid, winnerName);
+}
+
+async function createTask(payload: AsanaTaskPayload, token: string): Promise<string> {
+  try {
+    const task = await asanaRequest<{ gid: string }>("post", "/tasks", token, payload);
+    return task.gid;
+  } catch (err) {
+    // 커스텀 필드가 해당 프로젝트에 없을 때 → 필드 없이 재시도
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("Custom field") && msg.includes("not on given object") && payload.custom_fields) {
+      console.warn("[createTask] 커스텀 필드 미설정, 필드 제외 후 재시도:", msg);
+      const { custom_fields: _cf, ...rest } = payload;
+      const task = await asanaRequest<{ gid: string }>("post", "/tasks", token, rest);
+      return task.gid;
+    }
+    throw err;
+  }
+}
+
+/** 협업 참여자가 있으면 payload에 followers 추가 */
+function applyFollowers(payload: AsanaTaskPayload, gids: string[]): void {
+  if (gids.length > 0) payload.followers = gids;
+}
+
+function applyDue(payload: AsanaTaskPayload, due: DueFields): void {
+  delete payload.due_on;
+  delete payload.due_at;
+  if (due.due_at) { payload.due_at = due.due_at; return; }
+  if (due.due_on) payload.due_on = due.due_on;
+}
+
+function title(rowMap: Map<TaskKey, PreviewTaskRow>, key: TaskKey, fallback: string): string {
+  return rowMap.get(key)?.title?.trim() || fallback;
+}
+
+function isEnabled(rowMap: Map<TaskKey, PreviewTaskRow>, key: TaskKey): boolean {
+  const row = rowMap.get(key);
+  if (!row || !row.available || !row.enabled) return false;
+  if (row.parentKey) return isEnabled(rowMap, row.parentKey);
+  return true;
+}
+
+function record(ctx: TaskCreateContext, key: string, gid: string, name: string): void {
+  ctx.createdTasks.push({
+    key,
+    gid,
+    name,
+    url: `https://app.asana.com/0/${ctx.projectGid}/${gid}`
+  });
+}
