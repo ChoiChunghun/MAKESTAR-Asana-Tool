@@ -85,10 +85,65 @@ export function buildOpenDescription(ctx: OpenContext): string {
 }
 
 export function buildVmdDescription(ctx: OpenContext): string {
+  const venueNorm = (ctx.venue || "").replace(/\s/g, "");
+
+  if (venueNorm.includes("드림홀")) {
+    return buildVmdDescriptionDreamhall();
+  }
+  if (venueNorm.includes("스페이스강남")) {
+    return buildVmdDescriptionSpaceGangnam();
+  }
+
+  // 기본 (venue 미지정 또는 기타 장소)
   let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
   for (let i = 1; i <= ctx.vmdItemCount; i++) {
     html += `\n\n<strong>VMD ${i}</strong><ol>`;
     html += '<li>스펙<ol type="a"><li>공간명 및 사이즈</li></ol></li>';
+    html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
+    html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
+    html += "</ol>";
+  }
+  return `${html}</body>`;
+}
+
+function buildVmdDescriptionDreamhall(): string {
+  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  html += "\n\n<strong>배경 스크린</strong><ol>";
+  html += '<li>스펙<ol type="a"><li>2,304*960px, Png</li></ol></li>';
+  html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
+  html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
+  html += "</ol>";
+  return `${html}</body>`;
+}
+
+function buildVmdDescriptionSpaceGangnam(): string {
+  const items: { name: string; spec: string; vendor: string; vendorUrl?: string }[] = [
+    {
+      name: "현수막",
+      spec: "3,700*2,100mm, PDF",
+      vendor: "실사박사",
+      vendorUrl: "https://1644-7484.com/shop/item.php?it_id=1572573668"
+    },
+    {
+      name: "포스터 {n}종",
+      spec: "424*598mm *양면, PDF",
+      vendor: "레드프린팅",
+      vendorUrl: "https://www.redprinting.co.kr/ko/product/item/PR/PRPOXXX"
+    },
+    { name: "매장 폼보드 {n}종", spec: "424*598mm, PDF", vendor: "팀원" },
+    { name: "아티스트 로고 폼보드 1종", spec: "1,000*비율을 따름 mm, PDF", vendor: "팀원" },
+    { name: "앨범 로고 폼보드 1종", spec: "1,000*비율을 따름 mm, PDF", vendor: "팀원" },
+    { name: "X 배너 {n}종", spec: "600*1,800mm, PDF", vendor: "알파프린트" }
+  ];
+
+  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  for (const item of items) {
+    const vendorText = item.vendorUrl
+      ? `<a href="${esc(item.vendorUrl)}">${esc(item.vendor)}</a>`
+      : esc(item.vendor);
+    html += `\n\n<strong>${esc(item.name)}</strong><ol>`;
+    html += `<li>스펙<ol type="a"><li>${esc(item.spec)}</li></ol></li>`;
+    html += `<li>발주처<ol type="a"><li>${vendorText}</li></ol></li>`;
     html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
     html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
     html += "</ol>";

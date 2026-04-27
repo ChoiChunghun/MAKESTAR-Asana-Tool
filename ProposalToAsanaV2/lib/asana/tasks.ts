@@ -16,6 +16,7 @@ import {
   buildVmdDescription
 } from "@/lib/parser/descriptions";
 import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline";
+import { resolveVmdSubName } from "@/lib/parser/parseOpenContext";
 import { isValidGid } from "@/lib/parser/utils";
 import { asanaRequest, getCurrentUserGid, validateToken } from "./client";
 import { addTaskToSection, getFirstTaskInSection, getOrCreateSection } from "./sections";
@@ -279,7 +280,7 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
   const { summary, openContext } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "vmd");
   const vmdName = title(rowMap, "vmd", `[${summary.productCode}] VMD`);
-  const subName = title(rowMap, "vmdsub", `[${summary.productCode}] VMD / (${openContext.vmdItemCount})종`);
+  const subName = title(rowMap, "vmdsub", resolveVmdSubName(summary.productCode, openContext.venue, openContext.vmdItemCount));
 
   // ── VMD 부모: 상태(진행) + 태스크 구분 ──────────────────────────────────
   const vmdPayload: AsanaTaskPayload = {

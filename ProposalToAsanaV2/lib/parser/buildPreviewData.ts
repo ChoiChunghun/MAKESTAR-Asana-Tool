@@ -2,7 +2,7 @@ import type { NormalizedPlanData, ParsedPlanResult, PreviewTaskRow } from "@/typ
 import { buildSectionName, buildDueSummary } from "./parseDeadline";
 import { parseBenefits } from "./parseBenefits";
 import { parsePhotocards } from "./parsePhotocards";
-import { buildOpenContext, shouldCreateVmdTask, shouldCreateWinnerTask } from "./parseOpenContext";
+import { buildOpenContext, resolveVmdSubName, shouldCreateVmdTask, shouldCreateWinnerTask } from "./parseOpenContext";
 import { generateRandomCode } from "./utils";
 
 export function buildPreviewData(data: NormalizedPlanData, now = new Date()): ParsedPlanResult {
@@ -46,7 +46,7 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
     {
       key: "vmdsub",
       label: "└ VMD 상세",
-      title: `[${productCode}] VMD / (${openContext.vmdItemCount})종`,
+      title: resolveVmdSubName(productCode, openContext.venue, openContext.vmdItemCount),
       indent: 1,
       isParent: false,
       parentKey: "vmd",

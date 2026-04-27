@@ -12,6 +12,7 @@ export function buildOpenContext(data: NormalizedPlanData, productCode: string):
     planningLabel: data.sourceFileName ? `업로드 파일: ${data.sourceFileName}` : "업로드된 기획서",
     storyCount,
     vmdItemCount: VMD_FIXED_ITEM_COUNT,
+    venue: data.venue || "",
     compositeImageNeeded: "확인 필요",
     eventLabels,
     includePackshot: true,
@@ -128,6 +129,14 @@ export function buildSnsItems(labels: OpenEventLabel[], hasPromoEvent: boolean):
     items.push("특전");
   }
   return items;
+}
+
+/** 진행장소에 따라 VMD 서브태스크 이름 결정 */
+export function resolveVmdSubName(productCode: string, venue: string, defaultCount: number): string {
+  const norm = (venue || "").replace(/\s/g, "");
+  if (norm.includes("드림홀")) return `[${productCode}] VMD / 1종`;
+  if (norm.includes("스페이스강남")) return `[${productCode}] VMD / 6종`;
+  return `[${productCode}] VMD / (${defaultCount})종`;
 }
 
 export function shouldCreateVmdTask(labels: OpenEventLabel[]): boolean {

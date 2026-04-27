@@ -45,6 +45,7 @@ export type OpenContext = {
   planningLabel: string;
   storyCount: number;
   vmdItemCount: number;
+  venue: string;
   compositeImageNeeded: string;
   eventLabels: OpenEventLabel[];
   includePackshot: boolean;
