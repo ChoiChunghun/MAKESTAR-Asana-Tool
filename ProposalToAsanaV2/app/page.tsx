@@ -9,6 +9,17 @@ import { ParseSummary } from "@/components/preview/ParseSummary";
 import { TaskPreviewTable } from "@/components/preview/TaskPreviewTable";
 import { EventHistory, type HistoryEntry } from "@/components/layout/EventHistory";
 
+/** JSON 파싱 실패 시 (413 등 비JSON 응답) 안전하게 에러를 던짐 */
+async function safeJson(res: Response, fallback: string): Promise<unknown> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 413) throw new Error("파일 크기가 너무 큽니다. 20MB 이하의 파일을 업로드해주세요.");
+    throw new Error(text.slice(0, 200) || fallback);
+  }
+}
+
 const HISTORY_KEY = "proposal2asana_history";
 const TOKEN_KEY = "proposal2asana_token";
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
@@ -78,7 +89,7 @@ export default function HomePage() {
 
     try {
       const res = await fetch("/api/parse-document", { method: "POST", body: formData });
-      const data = await res.json();
+      const data = await safeJson(res, "파싱 중 오류가 발생했습니다.") as ParsedPlanResult & { message?: string };
       if (!res.ok) throw new Error(data.message);
       applyParseResult(data);
     } catch (e) {
@@ -99,7 +110,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ googleDocUrl: url })
       });
-      const data = await res.json();
+      const data = await safeJson(res, "Google Doc 파싱 중 오류가 발생했습니다.") as ParsedPlanResult & { message?: string };
       if (!res.ok) throw new Error(data.message);
       applyParseResult(data);
     } catch (e) {
@@ -165,11 +176,14 @@ export default function HomePage() {
           })()
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const raw = await safeJson(res, "Asana 태스크 생성 중 오류가 발생했습니다.") as {
+        message?: string; projectUrl?: string; sectionGid?: string;
+        createdTasks?: { gid: string; name: string }[];
+      };
+      if (!res.ok) throw new Error(raw.message);
 
-      setDoneUrl(data.projectUrl);
-      setCreatedCount(data.createdTasks?.length || 0);
+      setDoneUrl(raw.projectUrl ?? "");
+      setCreatedCount(raw.createdTasks?.length || 0);
       setStep("done");
 
       const projectName = projects.find((p) => p.gid === projectGid)?.name || projectGid;
@@ -181,8 +195,8 @@ export default function HomePage() {
         projectGid,
         projectName,
         productCode: productCodeOverride.trim() || plan.summary.productCode,
-        sectionGid: data.sectionGid,
-        createdTasks: data.createdTasks?.map((t: { gid: string; name: string }) => ({ gid: t.gid, name: t.name }))
+        sectionGid: raw.sectionGid,
+        createdTasks: raw.createdTasks?.map((t) => ({ gid: t.gid, name: t.name }))
       };
       const newHistory = [newEntry, ...history].slice(0, MAX_HISTORY);
       setHistory(newHistory);
