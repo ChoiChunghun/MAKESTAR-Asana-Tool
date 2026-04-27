@@ -22,12 +22,33 @@ async function safeJson(res: Response, fallback: string): Promise<unknown> {
 
 /** .docx 파일을 브라우저에서 텍스트만 추출 (이미지 제외 → 대용량 우회) */
 async function extractDocxTextInBrowser(file: File): Promise<string> {
+  // layout.tsx의 Script 태그로 로드된 window.mammoth 사용
+  const mammoth = (window as unknown as {
+    mammoth?: { extractRawText: (opts: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> }
+  }).mammoth;
+
+  if (!mammoth) {
+    // 아직 스크립트 로드 전이면 잠시 대기 후 재시도
+    await new Promise<void>((resolve, reject) => {
+      let tries = 0;
+      const check = setInterval(() => {
+        if ((window as unknown as { mammoth?: unknown }).mammoth) {
+          clearInterval(check);
+          resolve();
+        } else if (++tries > 30) {
+          clearInterval(check);
+          reject(new Error("mammoth 라이브러리 로드 실패"));
+        }
+      }, 100);
+    });
+  }
+
+  const m = (window as unknown as {
+    mammoth: { extractRawText: (opts: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> }
+  }).mammoth;
+
   const arrayBuffer = await file.arrayBuffer();
-  // webpack alias로 클라이언트에서는 mammoth.browser.min.js가 사용됨
-  const mammoth = (await import("mammoth")) as unknown as {
-    extractRawText: (opts: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
-  };
-  const result = await mammoth.extractRawText({ arrayBuffer });
+  const result = await m.extractRawText({ arrayBuffer });
   return result.value;
 }
 
