@@ -173,7 +173,7 @@ export default function AdminPage() {
             placeholder="비밀번호"
             className="ms-input mb-3"
           />
-          {authError && <p className="text-red-400 text-sm mb-3">{authError}</p>}
+          {authError && <p className="text-red-400 text-sm mb-3">{authError} 디자인센터(최충훈)에게 문의하세요.</p>}
           <button type="button" onClick={handleLogin} className="btn-accent w-full py-2">
             로그인
           </button>
@@ -423,7 +423,7 @@ export default function AdminPage() {
                   {lookupLoading ? <span className="spinner-sm" /> : "조회"}
                 </button>
               </div>
-              {lookupError && <p className="text-red-400 text-xs mb-3">⚠ {lookupError}</p>}
+              {lookupError && <p className="text-red-400 text-xs mb-3">⚠ {lookupError} 디자인센터(최충훈)에게 문의하세요.</p>}
 
               {lookedUpFields.length > 0 && (
                 <div className="space-y-4 mt-2">

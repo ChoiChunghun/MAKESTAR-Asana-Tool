@@ -449,7 +449,7 @@ export default function HomePage() {
 
             {errorMsg && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
-                {errorMsg}
+                {errorMsg} 디자인센터(최충훈)에게 문의하세요.
               </div>
             )}
           </>

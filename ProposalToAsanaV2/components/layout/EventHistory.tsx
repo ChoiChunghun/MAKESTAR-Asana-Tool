@@ -165,7 +165,7 @@ export function EventHistory({ history, onClear, onUpdateEntry, token }: Props) 
               {errorId === entry.id && (
                 <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
                   <span>⚠</span>
-                  <span>{errorMsg}</span>
+                  <span>{errorMsg} 디자인센터(최충훈)에게 문의하세요.</span>
                   <button
                     type="button"
                     onClick={() => setErrorId(null)}
