@@ -35,25 +35,6 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
       enabled: createWinnerAnnouncementTask
     },
     {
-      key: "vmd",
-      label: "VMD",
-      title: `[${productCode}] VMD`,
-      indent: 0,
-      isParent: true,
-      available: true,           // 항상 토글 가능
-      enabled: createVmdTask     // 대면/오프라인 이벤트 감지 시 기본 ON
-    },
-    {
-      key: "vmdsub",
-      label: "└ VMD 상세",
-      title: resolveVmdSubName(productCode, openContext.venue, openContext.vmdItemCount),
-      indent: 1,
-      isParent: false,
-      parentKey: "vmd",
-      available: true,
-      enabled: createVmdTask
-    },
-    {
       key: "md",
       label: "MD",
       title: `[${productCode}] MD`,
@@ -83,6 +64,25 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
       parentKey: "md",
       available: true,
       enabled: benefits.length > 0
+    },
+    {
+      key: "vmd",
+      label: "VMD",
+      title: `[${productCode}] VMD`,
+      indent: 0,
+      isParent: true,
+      available: true,
+      enabled: createVmdTask
+    },
+    {
+      key: "vmdsub",
+      label: "└ VMD 상세",
+      title: resolveVmdSubName(productCode, openContext.venue, openContext.vmdItemCount),
+      indent: 1,
+      isParent: false,
+      parentKey: "vmd",
+      available: true,
+      enabled: createVmdTask
     },
     {
       key: "up",

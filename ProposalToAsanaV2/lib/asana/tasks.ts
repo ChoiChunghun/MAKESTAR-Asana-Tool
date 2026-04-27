@@ -110,11 +110,11 @@ export async function createTasksFromPreview(
     eventFieldErrors: []
   };
 
-  // ── 생성 순서: 당첨자 선정 → MD → VMD → 업데이트 → 오픈 ──────────────────
-  // 최종 표시 순서(역순): 오픈 (최상단) → 업데이트 → VMD → MD → 당첨자 선정
+  // ── 생성 순서: 당첨자 선정 → VMD → MD → 업데이트 → 오픈 ──────────────────
+  // 최종 표시 순서(역순): 오픈 (최상단) → 업데이트 → MD → VMD → 당첨자 선정
   if (isEnabled(rowMap, "winner")) await createWinnerTask(context);
-  if (isEnabled(rowMap, "md")) await createMdTasks(context);
   if (isEnabled(rowMap, "vmd")) await createVmdTask(context);
+  if (isEnabled(rowMap, "md")) await createMdTasks(context);
   if (isEnabled(rowMap, "up")) await createUpdateTasks(context);
   if (isEnabled(rowMap, "open")) await createOpenTasks(context);
 
