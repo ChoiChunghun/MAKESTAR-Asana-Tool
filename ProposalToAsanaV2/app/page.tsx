@@ -245,6 +245,14 @@ export default function HomePage() {
                 if (t.trim().length > 10) loadProjects(t);
               }}
             />
+            <a
+              href="https://developers.asana.com/docs/personal-access-token"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ms-muted hover:text-white text-sm transition-colors"
+            >
+              Asana 토큰 발급 방법
+            </a>
             <a href="/admin" className="text-ms-muted hover:text-white text-sm transition-colors">
               관리자
             </a>
@@ -282,8 +290,12 @@ export default function HomePage() {
             {step === "idle" && (
               <>
                 <div className="text-center py-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">기획서를 Asana 태스크로</h2>
-                  <p className="text-ms-muted">PDF, Word, Google Doc을 업로드하면 자동으로 파싱해 Asana 태스크 초안을 만들어드립니다.</p>
+                  <h2 className="text-2xl font-bold text-white mb-2">아사나 태스크 생성기</h2>
+                  <p className="text-ms-muted">
+                    PDF, Word, <s>Google Doc</s>을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
+                    <br />
+                    <span className="text-ms-faint text-xs">* Asana 토큰 입력 후 사용 가능</span>
+                  </p>
                 </div>
                 <DocumentUpload
                   disabled={step !== "idle"}
