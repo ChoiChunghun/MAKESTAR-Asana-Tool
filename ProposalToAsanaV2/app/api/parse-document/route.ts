@@ -26,7 +26,25 @@ export async function POST(request: Request) {
     const contentType = request.headers.get("content-type") || "";
 
     if (contentType.includes("application/json")) {
-      const body = (await request.json().catch(() => ({}))) as { googleDocUrl?: string };
+      const body = (await request.json().catch(() => ({}))) as {
+        googleDocUrl?: string;
+        rawText?: string;
+        fileName?: string;
+      };
+
+      // 브라우저에서 추출한 텍스트 직접 수신 (대용량 docx 우회)
+      if (body.rawText) {
+        if (!body.rawText.trim()) {
+          return NextResponse.json(
+            { message: "문서에서 텍스트를 추출하지 못했습니다." },
+            { status: 422 }
+          );
+        }
+        const result = safeParseDocument(body.rawText, body.fileName || "문서");
+        if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
+        return NextResponse.json(result.preview);
+      }
+
       if (!body.googleDocUrl) {
         return NextResponse.json({ message: "Google Doc URL을 입력해주세요." }, { status: 400 });
       }

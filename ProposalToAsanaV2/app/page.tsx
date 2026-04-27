@@ -20,6 +20,17 @@ async function safeJson(res: Response, fallback: string): Promise<unknown> {
   }
 }
 
+/** .docx 파일을 브라우저에서 텍스트만 추출 (이미지 제외 → 대용량 우회) */
+async function extractDocxTextInBrowser(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  // webpack alias로 클라이언트에서는 mammoth.browser.min.js가 사용됨
+  const mammoth = (await import("mammoth")) as unknown as {
+    extractRawText: (opts: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
+  };
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+}
+
 const HISTORY_KEY = "proposal2asana_history";
 const TOKEN_KEY = "proposal2asana_token";
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
@@ -84,11 +95,25 @@ export default function HomePage() {
     setErrorMsg("");
     setPlan(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/parse-document", { method: "POST", body: formData });
+      const isDocx = file.name.toLowerCase().endsWith(".docx");
+      let res: Response;
+
+      if (isDocx) {
+        // .docx: 브라우저에서 텍스트만 추출 → JSON으로 전송 (이미지 포함 대용량 파일 우회)
+        const rawText = await extractDocxTextInBrowser(file);
+        res = await fetch("/api/parse-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawText, fileName: file.name })
+        });
+      } else {
+        // .pdf: 서버에서 파싱 (바이너리 전송)
+        const formData = new FormData();
+        formData.append("file", file);
+        res = await fetch("/api/parse-document", { method: "POST", body: formData });
+      }
+
       const data = await safeJson(res, "파싱 중 오류가 발생했습니다.") as ParsedPlanResult & { message?: string };
       if (!res.ok) throw new Error(data.message);
       applyParseResult(data);
