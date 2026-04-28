@@ -1,14 +1,15 @@
 import { normalizeDocumentText } from "./normalizeText";
 
 function parseGoogleDocId(input: string): string | null {
-  const patterns = [
-    /docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/,
-    /^([a-zA-Z0-9_-]{25,})$/
-  ];
-  for (const pattern of patterns) {
-    const match = input.trim().match(pattern);
-    if (match?.[1]) return match[1];
-  }
+  const trimmed = input.trim();
+
+  // Pattern 1: 전체 URL에서 추출 — docs.google.com 도메인 필수
+  const urlMatch = trimmed.match(/https?:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]{20,80})/);
+  if (urlMatch?.[1]) return urlMatch[1];
+
+  // Pattern 2: 순수 문서 ID (영숫자/-/_ 만, 25~80자) — 잘못된 ID는 Google이 404 반환
+  if (/^[a-zA-Z0-9_-]{25,80}$/.test(trimmed)) return trimmed;
+
   return null;
 }
 

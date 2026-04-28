@@ -115,9 +115,6 @@ export async function createTasksFromPreview(
   }
   const rowMap = new Map(effectiveRows.map((r) => [r.key, r]));
 
-  // 섹션에 현재 첫 번째 태스크 GID를 미리 파악 (신규 태스크를 그 앞에 삽입하기 위해)
-  const firstExistingGid = await getFirstTaskInSection(sectionGid, token);
-
   // ── 파생 모드: 이벤트 구분 "파생" 고정 ──────────────────────────────────
   const eventLabels: OpenEventLabel[] = isDerivative
     ? ["파생"]
@@ -149,8 +146,10 @@ export async function createTasksFromPreview(
   if (isEnabled(rowMap, "open")) await createOpenTasks(context);
 
   // ── 섹션 최상단에 역순 배치 ───────────────────────────────────────────────
-  // 각 태스크를 동일한 anchor(firstExisting) 바로 앞에 순서대로 삽입.
+  // 태스크 생성 완료 후 현재 첫 번째 태스크 GID를 조회 (race condition 최소화).
+  // 각 태스크를 동일한 anchor 바로 앞에 순서대로 삽입.
   // 나중에 삽입할수록 anchor 앞을 차지 → 마지막 생성(오픈)이 최상단.
+  const firstExistingGid = await getFirstTaskInSection(sectionGid, token);
   const anchor = firstExistingGid ?? undefined;
   for (let i = 0; i < context.topLevelTaskGids.length; i++) {
     await addTaskToSection(context.topLevelTaskGids[i], sectionGid, token, anchor);

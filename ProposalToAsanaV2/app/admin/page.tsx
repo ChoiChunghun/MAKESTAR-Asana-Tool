@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
 const ADMIN_AUTH_KEY = "proposal2asana_admin_auth";
-const DEFAULT_PASSWORD = "makestar2026";
 
 type StringListField = { items: string[]; label: string; description: string };
 
@@ -96,7 +95,7 @@ export default function AdminPage() {
   const [copiedGid, setCopiedGid] = useState("");
 
   async function fetchCustomFields() {
-    const token = localStorage.getItem(TOKEN_KEY) || "";
+    const token = sessionStorage.getItem(TOKEN_KEY) || "";
     if (!token) { setLookupError("메인 페이지에서 Asana 토큰을 먼저 입력해주세요."); return; }
     if (!lookupProjectGid.trim()) { setLookupError("프로젝트 GID를 입력해주세요."); return; }
     setLookupLoading(true);
@@ -134,13 +133,24 @@ export default function AdminPage() {
     }
   }, []);
 
-  function handleLogin() {
-    if (password === DEFAULT_PASSWORD) {
-      setIsAuth(true);
-      sessionStorage.setItem(ADMIN_AUTH_KEY, "true");
-      setAuthError("");
-    } else {
-      setAuthError("비밀번호가 올바르지 않습니다.");
+  async function handleLogin() {
+    if (!password.trim()) { setAuthError("비밀번호를 입력해주세요."); return; }
+    setAuthError("");
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json() as { ok: boolean; message?: string };
+      if (data.ok) {
+        setIsAuth(true);
+        sessionStorage.setItem(ADMIN_AUTH_KEY, "true");
+      } else {
+        setAuthError(data.message || "비밀번호가 올바르지 않습니다.");
+      }
+    } catch {
+      setAuthError("인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
 

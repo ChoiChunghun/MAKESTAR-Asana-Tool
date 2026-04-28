@@ -91,7 +91,7 @@ export default function HomePage() {
   const fileInputKey = useRef(0);
 
   useEffect(() => {
-    const saved = localStorage.getItem(TOKEN_KEY);
+    const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) setToken(saved);
     const hist = localStorage.getItem(HISTORY_KEY);
     if (hist) {
@@ -100,8 +100,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    else sessionStorage.removeItem(TOKEN_KEY);
   }, [token]);
 
   async function loadProjects(tok: string) {
@@ -537,10 +537,12 @@ export default function HomePage() {
                         <div className="flex gap-2">
                           <input
                             type="text"
+                            inputMode="numeric"
+                            pattern="\d{10,}"
                             value={projectGid}
-                            onChange={(e) => setProjectGid(e.target.value)}
-                            placeholder="프로젝트 GID (숫자)"
-                            className="ms-input flex-1"
+                            onChange={(e) => setProjectGid(e.target.value.replace(/\D/g, ""))}
+                            placeholder="프로젝트 GID (숫자만)"
+                            className="ms-input flex-1 font-mono"
                           />
                           <button
                             type="button"
