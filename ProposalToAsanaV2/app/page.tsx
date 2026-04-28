@@ -332,9 +332,8 @@ export default function HomePage() {
     setDerivativeInfo(null);
   }
 
-  // 기본값("추후 일괄 변경") 상태에서는 생성 불가
   const hasDefaultCode = rows.some((r) => r.title?.includes("추후 일괄 변경"));
-  const canCreate = token && projectGid && plan && !hasDefaultCode && rows.some((r) => r.enabled && r.available);
+  const canCreate = token && projectGid && plan && rows.some((r) => r.enabled && r.available);
 
   return (
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
@@ -468,8 +467,8 @@ export default function HomePage() {
                     입력 후 &quot;일괄 적용&quot;을 누르면 모든 태스크명과 섹션명에 반영됩니다.
                   </p>
                   {hasDefaultCode && (
-                    <p className="text-yellow-400 text-xs mt-1">
-                      ⚠ 상품코드를 입력하고 &quot;일괄 적용&quot;을 눌러야 생성할 수 있습니다.
+                    <p className="text-ms-muted text-xs mt-1">
+                      💡 상품코드를 입력하고 &quot;일괄 적용&quot;을 누르면 모든 태스크명이 한 번에 변경됩니다.
                     </p>
                   )}
                 </div>
