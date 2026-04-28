@@ -320,6 +320,25 @@ export default function HomePage() {
     });
   }
 
+  // 탭 닫기 / 브라우저 뒤로가기 시 경고
+  useEffect(() => {
+    const dirty = step === "preview" || step === "creating";
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step]);
+
+  function handleHomeClick() {
+    if (step === "preview" || step === "creating") {
+      if (!window.confirm("작업 중인 내용이 저장되지 않습니다.\n홈으로 이동하시겠습니까?")) return;
+    }
+    reset();
+  }
+
   function reset() {
     fileInputKey.current++;
     setStep("idle");
@@ -340,7 +359,13 @@ export default function HomePage() {
       <header className="border-b border-ms-border bg-ms-panel">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-white font-bold text-lg leading-none">MAKESTAR 태스크 머신</h1>
+            <button
+              type="button"
+              onClick={handleHomeClick}
+              className="text-white font-bold text-lg leading-none hover:text-ms-gold transition-colors"
+            >
+              MAKESTAR 태스크 머신
+            </button>
             <span className="text-ms-gold text-xs font-semibold tracking-wide">v2</span>
             <span className="text-ms-faint text-xs">·</span>
             <span className="text-ms-muted text-xs">Beta</span>
@@ -445,7 +470,7 @@ export default function HomePage() {
                 {/* 상품코드 일괄 수정 */}
                 <div className="card">
                   <div className="ms-label">
-                    <h2 className="text-sm font-semibold text-white">상품코드 / 아티스트 코드</h2>
+                    <h2 className="text-sm font-semibold text-white">상품코드</h2>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -464,13 +489,8 @@ export default function HomePage() {
                     </button>
                   </div>
                   <p className="ms-hint">
-                    입력 후 &quot;일괄 적용&quot;을 누르면 모든 태스크명과 섹션명에 반영됩니다.
+                    상품코드 입력 후 &quot;일괄 적용&quot;을 누르면 해당 이벤트의 모든 태스크명과 섹션명에 반영됩니다.
                   </p>
-                  {hasDefaultCode && (
-                    <p className="text-ms-muted text-xs mt-1">
-                      💡 상품코드를 입력하고 &quot;일괄 적용&quot;을 누르면 모든 태스크명이 한 번에 변경됩니다.
-                    </p>
-                  )}
                 </div>
 
                 <ParseSummary summary={plan.summary} />

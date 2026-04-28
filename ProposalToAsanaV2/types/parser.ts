@@ -113,6 +113,8 @@ export type ParsedPlanSummary = {
   createVmdTask: boolean;
   createWinnerAnnouncementTask: boolean;
   dueSummary: DueSummary;
+  venue: string;
+  applicationStartIso: string | null;
 };
 
 export type ParsedPlanResult = {

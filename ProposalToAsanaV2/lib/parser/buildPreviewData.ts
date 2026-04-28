@@ -145,7 +145,9 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
       snsItems: openContext.snsItems,
       createVmdTask,
       createWinnerAnnouncementTask,
-      dueSummary
+      dueSummary,
+      venue: openContext.venue ?? "",
+      applicationStartIso: data.applicationStartIso ?? null
     },
     previewRows
   };
