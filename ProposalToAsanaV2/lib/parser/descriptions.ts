@@ -1,6 +1,7 @@
 import type { OpenContext, ParsedItem } from "@/types/parser";
 import { HANDWRITING_KEYWORDS } from "./constants";
 import { hasKeyword } from "./utils";
+import { detectVenues, VENUE_DISPLAY, type VenueKey } from "./parseOpenContext";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -85,47 +86,56 @@ export function buildOpenDescription(ctx: OpenContext): string {
 }
 
 export function buildVmdDescription(ctx: OpenContext): string {
-  const venueNorm = (ctx.venue || "").replace(/\s/g, "");
+  const venues = detectVenues(ctx.venue);
 
-  if (venueNorm.includes("드림홀")) {
-    return buildVmdDescriptionDreamhall();
-  }
-  if (venueNorm.includes("스페이스강남")) {
-    return buildVmdDescriptionSpaceGangnam();
-  }
-  if (venueNorm.includes("스페이스상하이")) {
-    return buildVmdDescriptionSpaceShanghai();
-  }
-  if (venueNorm.includes("스페이스광저우")) {
-    return buildVmdDescriptionSpaceGuangzhou();
-  }
-  if (venueNorm.includes("스페이스심천")) {
-    return buildVmdDescriptionSpaceShenzhen();
+  // 기본 (venue 미지정 또는 알 수 없는 장소)
+  if (venues.length === 0) {
+    let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+    for (let i = 1; i <= ctx.vmdItemCount; i++) {
+      html += `\n\n<strong>VMD ${i}</strong><ol>`;
+      html += '<li>스펙<ol type="a"><li>공간명 및 사이즈</li></ol></li>';
+      html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
+      html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
+      html += "</ol>";
+    }
+    return `${html}</body>`;
   }
 
-  // 기본 (venue 미지정 또는 기타 장소)
+  // 단일 장소 — 헤더 없이 기존 포맷
+  if (venues.length === 1) {
+    return `<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>${vmdItemsHtml(venues[0])}</body>`;
+  }
+
+  // 복수 장소 — 장소별 섹션 헤더 포함
   let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
-  for (let i = 1; i <= ctx.vmdItemCount; i++) {
-    html += `\n\n<strong>VMD ${i}</strong><ol>`;
-    html += '<li>스펙<ol type="a"><li>공간명 및 사이즈</li></ol></li>';
-    html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
-    html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
-    html += "</ol>";
+  for (const v of venues) {
+    html += `\n\n<strong>▶ ${esc(VENUE_DISPLAY[v])}</strong>`;
+    html += vmdItemsHtml(v);
   }
   return `${html}</body>`;
 }
 
-function buildVmdDescriptionDreamhall(): string {
-  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
-  html += "\n\n<strong>배경 스크린</strong><ol>";
+/** 장소별 항목 HTML (body 래퍼 없음, 앞에 \n\n 포함) */
+function vmdItemsHtml(venueKey: VenueKey): string {
+  switch (venueKey) {
+    case "드림홀":          return vmdItemsDreamhall();
+    case "스페이스강남":    return vmdItemsSpaceGangnam();
+    case "스페이스상하이":  return vmdItemsSpaceShanghai();
+    case "스페이스광저우":  return vmdItemsSpaceGuangzhou();
+    case "스페이스심천":    return vmdItemsSpaceShenzhen();
+  }
+}
+
+function vmdItemsDreamhall(): string {
+  let html = "\n\n<strong>배경 스크린</strong><ol>";
   html += '<li>스펙<ol type="a"><li>2,304*960px, Png</li></ol></li>';
   html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
   html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
   html += "</ol>";
-  return `${html}</body>`;
+  return html;
 }
 
-function buildVmdDescriptionSpaceGangnam(): string {
+function vmdItemsSpaceGangnam(): string {
   const items: { name: string; spec: string; vendor: string; vendorUrl?: string }[] = [
     {
       name: "현수막",
@@ -145,7 +155,7 @@ function buildVmdDescriptionSpaceGangnam(): string {
     { name: "X 배너 {n}종", spec: "600*1,800mm, PDF", vendor: "알파프린트" }
   ];
 
-  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  let html = "";
   for (const item of items) {
     const vendorText = item.vendorUrl
       ? `<a href="${esc(item.vendorUrl)}">${esc(item.vendor)}</a>`
@@ -157,10 +167,10 @@ function buildVmdDescriptionSpaceGangnam(): string {
     html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
     html += "</ol>";
   }
-  return `${html}</body>`;
+  return html;
 }
 
-function buildVmdDescriptionSpaceShanghai(): string {
+function vmdItemsSpaceShanghai(): string {
   const items: { name: string; spec: string; note?: string }[] = [
     { name: "입구 디스플레이 1종", spec: "3,200*1,344px, Png" },
     { name: "중형 디스플레이 {n}종", spec: "1,080*1,920px, Png" },
@@ -169,7 +179,7 @@ function buildVmdDescriptionSpaceShanghai(): string {
     { name: "가운데 포스터 1종", spec: "1,460*2,400mm 도련 2mm, Pdf" }
   ];
 
-  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  let html = "";
   for (const item of items) {
     html += `\n\n<strong>${esc(item.name)}</strong><ol>`;
     const specText = item.note ? `${esc(item.spec)} (비고: ${esc(item.note)})` : esc(item.spec);
@@ -178,16 +188,16 @@ function buildVmdDescriptionSpaceShanghai(): string {
     html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
     html += "</ol>";
   }
-  return `${html}</body>`;
+  return html;
 }
 
-function buildVmdDescriptionSpaceGuangzhou(): string {
+function vmdItemsSpaceGuangzhou(): string {
   const items: { name: string; spec: string }[] = [
     { name: "입구 디스플레이 1종", spec: "2,560*2,560px, Png" },
     { name: "가운데 포스터 1종", spec: "900*2,200mm 도련 2mm, Pdf" }
   ];
 
-  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  let html = "";
   for (const item of items) {
     html += `\n\n<strong>${esc(item.name)}</strong><ol>`;
     html += `<li>스펙<ol type="a"><li>${esc(item.spec)}</li></ol></li>`;
@@ -195,17 +205,17 @@ function buildVmdDescriptionSpaceGuangzhou(): string {
     html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
     html += "</ol>";
   }
-  return `${html}</body>`;
+  return html;
 }
 
-function buildVmdDescriptionSpaceShenzhen(): string {
+function vmdItemsSpaceShenzhen(): string {
   const items: { name: string; spec: string }[] = [
     { name: "입구 디스플레이 1종", spec: "2,240*2,240px, Png" },
     { name: "가운데 디스플레이 1종", spec: "1,920*1,440px, Png" },
     { name: "가운데 포스터 {n}종", spec: "1,200*2,200mm, Pdf" }
   ];
 
-  let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
+  let html = "";
   for (const item of items) {
     html += `\n\n<strong>${esc(item.name)}</strong><ol>`;
     html += `<li>스펙<ol type="a"><li>${esc(item.spec)}</li></ol></li>`;
@@ -213,5 +223,5 @@ function buildVmdDescriptionSpaceShenzhen(): string {
     html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항 등을 편하게 남겨주세요!</li></ol></li>';
     html += "</ol>";
   }
-  return `${html}</body>`;
+  return html;
 }

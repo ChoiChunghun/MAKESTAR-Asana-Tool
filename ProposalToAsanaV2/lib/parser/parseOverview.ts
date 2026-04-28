@@ -120,10 +120,10 @@ function extractOverviewTable(lines: string[]): OverviewFields {
       }
     }
 
-    // ── 진행장소 ────────────────────────────────────────────────────────
+    // ── 진행장소 (복수 장소는 " / " 로 연결) ──────────────────────────────
     if (!found.has("venue")) {
       if (norm === "진행장소") {
-        const v = findNextNonEmptyValue(scanLines, i + 1, LABEL_KEYS);
+        const v = collectAllVenueValues(scanLines, i + 1, LABEL_KEYS);
         if (v) { result.venue = v; found.add("venue"); }
       } else if (norm.startsWith("진행장소") && norm.length > 4) {
         const v = extractValueAfterLabel(line, "진행장소");
@@ -300,6 +300,19 @@ function extractValueAfterLabel(line: string, label: string): string {
   const idx = line.indexOf(label);
   if (idx < 0) return "";
   return line.slice(idx + label.length).replace(/^[\s:：]+/, "").trim();
+}
+
+/** 진행장소처럼 여러 줄에 걸쳐 있는 값을 " / " 로 이어 수집 */
+function collectAllVenueValues(lines: string[], startIdx: number, labelKeys: string[]): string {
+  const parts: string[] = [];
+  for (let j = startIdx; j < Math.min(startIdx + 10, lines.length); j++) {
+    const v = lines[j]?.trim();
+    if (!v) continue;
+    if (labelKeys.some((k) => v.replace(/\s+/g, "") === k)) break;
+    if (/^\{.*\}$/.test(v)) continue;
+    parts.push(v);
+  }
+  return parts.join(" / ");
 }
 
 function findNextNonEmptyValue(lines: string[], startIdx: number, labelKeys: string[]): string {

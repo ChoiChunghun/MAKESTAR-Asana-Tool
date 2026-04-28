@@ -131,15 +131,44 @@ export function buildSnsItems(labels: OpenEventLabel[], hasPromoEvent: boolean):
   return items;
 }
 
-/** 진행장소에 따라 VMD 서브태스크 이름 결정 */
-export function resolveVmdSubName(productCode: string, venue: string, defaultCount: number): string {
+// ── VMD 장소 감지 ─────────────────────────────────────────────────────────
+
+export type VenueKey = "드림홀" | "스페이스강남" | "스페이스상하이" | "스페이스광저우" | "스페이스심천";
+
+export const VENUE_COUNT: Record<VenueKey, number> = {
+  드림홀: 1,
+  스페이스강남: 6,
+  스페이스상하이: 5,
+  스페이스광저우: 2,
+  스페이스심천: 3
+};
+
+export const VENUE_DISPLAY: Record<VenueKey, string> = {
+  드림홀: "드림홀",
+  스페이스강남: "스페이스 강남",
+  스페이스상하이: "상하이 매장",
+  스페이스광저우: "광저우 매장",
+  스페이스심천: "심천 매장"
+};
+
+/** venue 문자열에서 알려진 장소를 모두 추출 (순서 유지) */
+export function detectVenues(venue: string): VenueKey[] {
   const norm = (venue || "").replace(/\s/g, "");
-  if (norm.includes("드림홀")) return `[${productCode}] VMD / 1종`;
-  if (norm.includes("스페이스강남")) return `[${productCode}] VMD / 6종`;
-  if (norm.includes("스페이스상하이")) return `[${productCode}] VMD / 5종`;
-  if (norm.includes("스페이스광저우")) return `[${productCode}] VMD / 2종`;
-  if (norm.includes("스페이스심천")) return `[${productCode}] VMD / 3종`;
-  return `[${productCode}] VMD / (${defaultCount})종`;
+  const result: VenueKey[] = [];
+  if (norm.includes("드림홀")) result.push("드림홀");
+  if (norm.includes("스페이스강남")) result.push("스페이스강남");
+  if (norm.includes("스페이스상하이")) result.push("스페이스상하이");
+  if (norm.includes("스페이스광저우")) result.push("스페이스광저우");
+  if (norm.includes("스페이스심천")) result.push("스페이스심천");
+  return result;
+}
+
+/** 진행장소에 따라 VMD 서브태스크 이름 결정 (복수 장소 합산) */
+export function resolveVmdSubName(productCode: string, venue: string, defaultCount: number): string {
+  const venues = detectVenues(venue);
+  if (venues.length === 0) return `[${productCode}] VMD / (${defaultCount})종`;
+  const total = venues.reduce((s, v) => s + VENUE_COUNT[v], 0);
+  return `[${productCode}] VMD / ${total}종`;
 }
 
 export function shouldCreateVmdTask(labels: OpenEventLabel[]): boolean {
