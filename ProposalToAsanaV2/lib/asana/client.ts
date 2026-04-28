@@ -56,3 +56,12 @@ export async function getCurrentUserGid(token: string): Promise<string> {
   const user = await asanaRequest<{ gid: string }>("get", "/users/me", token);
   return user?.gid ?? "";
 }
+
+export async function getCurrentUser(token: string): Promise<{ gid: string; name: string }> {
+  const user = await asanaRequest<{ gid: string; name: string }>(
+    "get",
+    "/users/me?opt_fields=gid,name",
+    token
+  );
+  return { gid: user?.gid ?? "", name: user?.name ?? "" };
+}

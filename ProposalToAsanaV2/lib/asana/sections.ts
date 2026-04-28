@@ -29,6 +29,25 @@ export async function getOrCreateSection(projectGid: string, sectionName: string
   return created.gid;
 }
 
+/**
+ * 프로젝트 내 섹션 중 상품코드를 포함하는 섹션을 찾아 반환 (없으면 null).
+ * 단순 contains 매칭이므로 고유한 코드 사용을 권장.
+ */
+export async function findSectionByProductCode(
+  projectGid: string,
+  productCode: string,
+  token: string
+): Promise<{ gid: string; name: string } | null> {
+  const code = productCode.trim();
+  if (!code) return null;
+  const sections = await asanaRequest<{ gid: string; name: string }[]>(
+    "get",
+    `/projects/${projectGid}/sections?opt_fields=gid,name`,
+    token
+  );
+  return (sections || []).find((s) => s.name.includes(code)) ?? null;
+}
+
 /** 섹션의 첫 번째 태스크 GID를 반환 (없으면 null) */
 export async function getFirstTaskInSection(sectionGid: string, token: string): Promise<string | null> {
   try {

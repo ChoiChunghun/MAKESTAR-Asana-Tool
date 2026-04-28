@@ -59,6 +59,12 @@ const MAX_HISTORY = 5;
 
 type Step = "idle" | "parsing" | "preview" | "creating" | "done";
 
+type DerivativeInfo = {
+  sectionGid: string;
+  sectionName: string;
+  suffix: "_CN" | "_NAEU";
+};
+
 export default function HomePage() {
   const [token, setToken] = useState("");
   const [step, setStep] = useState<Step>("idle");
@@ -77,6 +83,9 @@ export default function HomePage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [doneUrl, setDoneUrl] = useState("");
   const [createdCount, setCreatedCount] = useState(0);
+
+  const [derivativeInfo, setDerivativeInfo] = useState<DerivativeInfo | null>(null);
+  const [derivativeChecking, setDerivativeChecking] = useState(false);
 
   const fileInputKey = useRef(0);
 
@@ -110,11 +119,36 @@ export default function HomePage() {
     }
   }
 
+  async function checkDerivativeMode(pgid: string, prodCode: string, tok: string) {
+    if (!pgid || !prodCode || !tok || prodCode.includes("추후 일괄 변경")) {
+      setDerivativeInfo(null);
+      return;
+    }
+    setDerivativeChecking(true);
+    try {
+      const res = await fetch(
+        `/api/asana/check-derivative?projectGid=${encodeURIComponent(pgid)}&productCode=${encodeURIComponent(prodCode)}`,
+        { headers: { "x-asana-token": tok } }
+      );
+      const data = await res.json();
+      if (data.isDerivative) {
+        setDerivativeInfo({ sectionGid: data.sectionGid, sectionName: data.sectionName, suffix: data.suffix });
+      } else {
+        setDerivativeInfo(null);
+      }
+    } catch {
+      setDerivativeInfo(null);
+    } finally {
+      setDerivativeChecking(false);
+    }
+  }
+
   async function handleFileSelected(file: File) {
     setSelectedFile(file.name);
     setStep("parsing");
     setErrorMsg("");
     setPlan(null);
+    setDerivativeInfo(null);
 
     try {
       const isDocx = file.name.toLowerCase().endsWith(".docx");
@@ -177,6 +211,10 @@ export default function HomePage() {
     setProductCodeOverride(data.summary.productCode ?? "");
     setStep("preview");
     if (token && projects.length === 0) loadProjects(token);
+    // 프로젝트가 이미 선택된 경우 파생 모드 자동 확인
+    if (token && projectGid) {
+      checkDerivativeMode(projectGid, data.summary.productCode ?? "", token);
+    }
   }
 
   function applyProductCodeOverride() {
@@ -193,6 +231,8 @@ export default function HomePage() {
       if (parts.length >= 2) return `${parts[0]} ${code}`;
       return `${prev} ${code}`;
     });
+    // 상품코드 변경 → 파생 모드 재확인
+    if (token && projectGid) checkDerivativeMode(projectGid, code, token);
   }
 
   async function handleCreate() {
@@ -219,7 +259,10 @@ export default function HomePage() {
                 artistDesignerMap: cfg.artistDesignerRules || []
               };
             } catch { return { designerGid: "", followerGids: [], artistDesignerMap: [] }; }
-          })()
+          })(),
+          ...(derivativeInfo
+            ? { derivative: { sectionGid: derivativeInfo.sectionGid, suffix: derivativeInfo.suffix } }
+            : {})
         })
       });
       const raw = await safeJson(res, "Asana 태스크 생성 중 오류가 발생했습니다.") as {
@@ -283,6 +326,7 @@ export default function HomePage() {
     setErrorMsg("");
     setSelectedFile("");
     setDoneUrl("");
+    setDerivativeInfo(null);
   }
 
   const canCreate = token && projectGid && plan && rows.some((r) => r.enabled && r.available);
@@ -429,6 +473,26 @@ export default function HomePage() {
                   onSectionNameChange={setSectionName}
                 />
 
+                {/* 파생 모드 배너 */}
+                {derivativeChecking && (
+                  <div className="bg-ms-panel border border-ms-border rounded-xl px-4 py-2 text-ms-muted text-sm">
+                    파생 모드 확인 중...
+                  </div>
+                )}
+                {!derivativeChecking && derivativeInfo && (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 text-orange-300 text-sm space-y-1">
+                    <p className="font-semibold">⚠ 파생 모드 감지됨</p>
+                    <p>
+                      기존 섹션 <strong className="text-orange-200">&quot;{derivativeInfo.sectionName}&quot;</strong>에 태스크가 추가됩니다.
+                    </p>
+                    <p>
+                      상품코드에 <strong className="text-orange-200">{derivativeInfo.suffix}</strong> 접미사가 자동 적용되고,
+                      태스크 유형이 <strong className="text-orange-200">SNS 오픈</strong>으로,
+                      이벤트 구분이 <strong className="text-orange-200">파생</strong>으로 고정됩니다.
+                    </p>
+                  </div>
+                )}
+
                 {/* 프로젝트 선택 + 생성 */}
                 <div className="card">
                   <div className="ms-label mb-3">
@@ -444,7 +508,13 @@ export default function HomePage() {
                       ) : projects.length > 0 ? (
                         <select
                           value={projectGid}
-                          onChange={(e) => setProjectGid(e.target.value)}
+                          onChange={(e) => {
+                            setProjectGid(e.target.value);
+                            if (plan && token) {
+                              const code = productCodeOverride.trim() || plan.summary.productCode;
+                              checkDerivativeMode(e.target.value, code, token);
+                            }
+                          }}
                           className="ms-input"
                         >
                           {projects.map((p) => (

@@ -12,6 +12,7 @@ import {
   buildBenefitDescription,
   buildOpenDescription,
   buildPhotocardDescription,
+  buildSnsOpenDescription,
   buildUpdateDescription,
   buildVmdDescription
 } from "@/lib/parser/descriptions";
@@ -52,6 +53,7 @@ type TaskCreateContext = {
   eventLabels: OpenEventLabel[]; // 이벤트 구분 커스텀 필드에 사용
   followerGids: string[];        // 협업 참여자 — 모든 태스크에 일괄 적용
   eventFieldErrors: string[];    // 이벤트 구분 필드 설정 실패 수집 (태스크 생성은 계속)
+  isDerivative: boolean;         // 파생 모드 여부
 };
 
 /** 이벤트 구분 필드 설정 실패 시 에러 메시지를 context에 수집하고 태스크 생성은 계속 진행 */
@@ -75,8 +77,13 @@ export async function createTasksFromPreview(
   if (!request.sectionName?.trim()) throw new Error("섹션명을 입력해주세요.");
 
   const token = request.asanaToken;
+  const isDerivative = !!request.derivative;
+
+  // ── 파생 모드: 기존 섹션 GID 직접 사용, 신규 생성 생략 ────────────────────
   const [sectionGid, requesterGid] = await Promise.all([
-    getOrCreateSection(request.projectGid, request.sectionName.trim(), token),
+    isDerivative
+      ? Promise.resolve(request.derivative!.sectionGid)
+      : getOrCreateSection(request.projectGid, request.sectionName.trim(), token),
     getCurrentUserGid(token).catch(() => "")
   ]);
   // 아티스트별 담당자 규칙 적용: 소속 아티스트명 매핑이 있으면 해당 designerGid 사용
@@ -90,10 +97,29 @@ export async function createTasksFromPreview(
       : isValidGid(request.designerGid ?? "") ? (request.designerGid ?? "") : requesterGid;
 
   const followerGids = (request.followerGids || []).filter(isValidGid);
-  const rowMap = new Map(request.rows.map((r) => [r.key, r]));
+
+  // ── 파생 모드: 행 타이틀에 접미사 적용 + 오픈 → SNS 오픈 ─────────────────
+  let effectiveRows = request.rows;
+  if (isDerivative && request.derivative) {
+    const { suffix } = request.derivative;
+    effectiveRows = request.rows.map((r) => {
+      // [CODE] → [CODE_CN] or [CODE_NAEU]
+      let t = r.title.replace(/^\[([^\]]+)\]/, (_, code) => `[${code}${suffix}]`);
+      // 오픈 → SNS 오픈 (끝에 "오픈"이 있는 경우만)
+      if (r.key === "open") t = t.replace(/(\])\s*오픈$/, "$1 SNS 오픈");
+      if (r.key === "opendesign") t = t.replace(/(\])\s*오픈\s*디자인$/, "$1 SNS 오픈 디자인");
+      return { ...r, title: t };
+    });
+  }
+  const rowMap = new Map(effectiveRows.map((r) => [r.key, r]));
 
   // 섹션에 현재 첫 번째 태스크 GID를 미리 파악 (신규 태스크를 그 앞에 삽입하기 위해)
   const firstExistingGid = await getFirstTaskInSection(sectionGid, token);
+
+  // ── 파생 모드: 이벤트 구분 "파생" 고정 ──────────────────────────────────
+  const eventLabels: OpenEventLabel[] = isDerivative
+    ? ["파생"]
+    : request.plan.openContext.eventLabels;
 
   const context: TaskCreateContext = {
     request,
@@ -105,17 +131,19 @@ export async function createTasksFromPreview(
     requesterGid,
     designerGid: resolvedDesignerGid,
     topLevelTaskGids: [],
-    eventLabels: request.plan.openContext.eventLabels,
+    eventLabels,
     followerGids,
-    eventFieldErrors: []
+    eventFieldErrors: [],
+    isDerivative
   };
 
   // ── 생성 순서: 당첨자 선정 → VMD → MD → 업데이트 → 오픈 ──────────────────
   // 최종 표시 순서(역순): 오픈 (최상단) → 업데이트 → MD → VMD → 당첨자 선정
-  if (isEnabled(rowMap, "winner")) await createWinnerTask(context);
+  // 파생 모드: winner/update 생성 생략
+  if (!isDerivative && isEnabled(rowMap, "winner")) await createWinnerTask(context);
   if (isEnabled(rowMap, "vmd")) await createVmdTask(context);
   if (isEnabled(rowMap, "md")) await createMdTasks(context);
-  if (isEnabled(rowMap, "up")) await createUpdateTasks(context);
+  if (!isDerivative && isEnabled(rowMap, "up")) await createUpdateTasks(context);
   if (isEnabled(rowMap, "open")) await createOpenTasks(context);
 
   // ── 섹션 최상단에 역순 배치 ───────────────────────────────────────────────
@@ -237,24 +265,36 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
 }
 
 async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids, isDerivative } = ctx;
   const { summary, openContext } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "open");
-  const openName = title(rowMap, "open", `[${summary.productCode}] 오픈`);
-  const designName = title(rowMap, "opendesign", `[${summary.productCode}] 오픈 디자인`);
+
+  const openName = title(rowMap, "open", isDerivative
+    ? `[${summary.productCode}] SNS 오픈`
+    : `[${summary.productCode}] 오픈`);
+  const designName = title(rowMap, "opendesign", isDerivative
+    ? `[${summary.productCode}] SNS 오픈 디자인`
+    : `[${summary.productCode}] 오픈 디자인`);
 
   // ── 오픈 부모: 상태(진행) + 태스크 구분 + 이벤트 구분 ───────────────────
   const openPayload: AsanaTaskPayload = {
     name: openName,
     projects: [projectGid],
     assignee: requesterGid || undefined,
-    notes: '페이지 작업 후 "완료" 처리 부탁드립니다!',
+    ...(isDerivative
+      ? {
+          html_notes:
+            "<body>메이크스타에서 오픈한 이벤트를 특정 국가를 타겟으로 추가 작업할 때 사용하는 태스크 입니다!" +
+            `<ul><li>SNS 발행 후 &#x201C;완료&#x201D; 처리 부탁드립니다!</li>` +
+            `<li>&#x201C;이벤트 구분&#x201D; 필드 값을 입력해 주세요! <em>(중복 선택 가능)</em></li></ul></body>`
+        }
+      : { notes: '페이지 작업 후 "완료" 처리 부탁드립니다!' }),
     custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_OPEN, token)
   };
   applyDue(openPayload, dueFields);
   applyFollowers(openPayload, followerGids);
   const openGid = await createTask(openPayload, token);
-  await safeSetEventField(openGid, openContext.eventLabels, ctx);
+  await safeSetEventField(openGid, eventLabels, ctx);
   ctx.topLevelTaskGids.push(openGid);
   record(ctx, "open", openGid, openName);
 
@@ -264,13 +304,15 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
       name: designName,
       parent: openGid,
       assignee: designerGid || undefined,
-      html_notes: buildOpenDescription(openContext),
+      html_notes: isDerivative
+        ? buildSnsOpenDescription(openContext)
+        : buildOpenDescription(openContext),
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
     };
     applyDue(designPayload, dueFields);
     applyFollowers(designPayload, followerGids);
     const designGid = await createTask(designPayload, token);
-    await safeSetEventField(designGid, openContext.eventLabels, ctx);
+    await safeSetEventField(designGid, eventLabels, ctx);
     record(ctx, "opendesign", designGid, designName);
   }
 }
