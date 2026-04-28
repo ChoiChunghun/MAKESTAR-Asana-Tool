@@ -462,7 +462,7 @@ export default function HomePage() {
                     <span className="dot-green">●</span>
                     파싱 완료: <strong className="text-white">{selectedFile}</strong>
                   </div>
-                  <button type="button" onClick={reset} className="text-ms-muted hover:text-white text-sm">
+                  <button type="button" onClick={handleHomeClick} className="text-ms-muted hover:text-white text-sm">
                     ← 처음으로
                   </button>
                 </div>
