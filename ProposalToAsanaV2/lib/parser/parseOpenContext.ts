@@ -136,6 +136,9 @@ export function resolveVmdSubName(productCode: string, venue: string, defaultCou
   const norm = (venue || "").replace(/\s/g, "");
   if (norm.includes("드림홀")) return `[${productCode}] VMD / 1종`;
   if (norm.includes("스페이스강남")) return `[${productCode}] VMD / 6종`;
+  if (norm.includes("스페이스상하이")) return `[${productCode}] VMD / 5종`;
+  if (norm.includes("스페이스광저우")) return `[${productCode}] VMD / 2종`;
+  if (norm.includes("스페이스심천")) return `[${productCode}] VMD / 3종`;
   return `[${productCode}] VMD / (${defaultCount})종`;
 }
 
