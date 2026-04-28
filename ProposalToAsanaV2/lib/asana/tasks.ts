@@ -60,12 +60,14 @@ type TaskCreateContext = {
 async function safeSetEventField(
   taskGid: string,
   labels: OpenEventLabel[],
-  ctx: TaskCreateContext
+  ctx: TaskCreateContext,
+  taskName?: string
 ): Promise<void> {
   try {
     await setEventFieldOnTask(taskGid, labels, ctx.token);
   } catch (e) {
-    ctx.eventFieldErrors.push(e instanceof Error ? e.message : "이벤트 구분 필드 설정 실패");
+    const base = e instanceof Error ? e.message : "이벤트 구분 필드 설정 실패";
+    ctx.eventFieldErrors.push(taskName ? `[${taskName}] ${base}` : base);
   }
 }
 
@@ -188,7 +190,7 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
   applyDue(mdPayload, dueFields);
   applyFollowers(mdPayload, followerGids);
   const mdGid = await createTask(mdPayload, token);
-  await safeSetEventField(mdGid, eventLabels, ctx);
+  await safeSetEventField(mdGid, eventLabels, ctx, mdName);
   ctx.topLevelTaskGids.push(mdGid);
   record(ctx, "md", mdGid, mdName);
 
@@ -386,7 +388,9 @@ async function createTask(payload: AsanaTaskPayload, token: string): Promise<str
     // 커스텀 필드가 해당 프로젝트에 없을 때 → 필드 없이 재시도
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("Custom field") && msg.includes("not on given object") && payload.custom_fields) {
-      console.warn("[createTask] 커스텀 필드 미설정, 필드 제외 후 재시도:", msg);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[createTask] 커스텀 필드 미설정, 필드 제외 후 재시도:", msg);
+      }
       const { custom_fields: _cf, ...rest } = payload;
       const task = await asanaRequest<{ gid: string }>("post", "/tasks", token, rest);
       return task.gid;

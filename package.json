@@ -1,0 +1,14 @@
+{
+  "name": "genspark-prompt-extractor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/extract-genspark-prompts.js --setup",
+    "run": "node scripts/extract-genspark-prompts.js --manifest ./pairs/pairs.csv",
+    "sample": "python3 -m http.server 9900 --directory ./99_Sample"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}

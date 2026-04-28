@@ -1,0 +1,1244 @@
+/**
+ * ============================================================
+ *  Asana 태스크 자동 생성 스크립트 v17
+ *
+ *  수정 사항:
+ *  1. 상위 업데이트 태스크 이름: [상품코드] 업데이트 (슬래시/종수 제거)
+ *  2. 특전 파싱 제외 로직 개선: 조건 문장은 막되, 실제 특전 항목(예: 키링 1종)은 다시 태스크로 연동
+ *  3. 포토카드/특전/업데이트 본문에서 A/B 라벨 제거
+ *  4. 포토카드 태스크명에 세트 수 포함
+ *  5. 오픈 태스크 / 오픈 디자인 하위 태스크 자동 생성 추가
+ *  6. 오픈 이벤트 감지 결과를 Asana "이벤트 구분" 커스텀 필드 반영 기준으로 정리
+ *  7. 영어 이벤트명도 감지해 한글 이벤트 구분으로 치환
+ *  8. 오픈 디자인 태스크 본문의 섹션 간 줄바꿈을 1회만 적용되도록 정리
+ *  9. 오픈 상위/하위 태스크 모두 "태스크 구분 = 오픈"으로 동일하게 설정
+ * 10. 오픈 디자인 태스크의 "이벤트 구분"도 상위 태스크와 동일 값으로 자동 세팅
+ * 11. 원클릭으로 MD/업데이트/오픈/VMD/당첨자 선정 태스크를 한 번에 생성
+ * 12. 오프라인/대면 계열 이벤트가 있으면 VMD 태스크 추가 생성
+ * 13. 포토카드 증정형 이벤트만 있는 경우를 제외한 이벤트에는 당첨자 선정 태스크 추가 생성
+ * 14. 당첨자 선정 태스크에는 최충훈을 협업참여자로 추가하지 않음
+ * 15. 제공된 Asana 스크린샷을 기준으로 VMD/당첨자 선정 구조와 본문 형식을 최대한 가깝게 반영
+ * 16. 전체 생성 순서를 당첨자 선정 → VMD → MD → 업데이트 → 오픈으로 조정하여 섹션 표시 순서를 맞춤
+ * 17. VMD 하위 태스크명 형식을 "[상품코드] VMD / n종"으로 변경하고 상태값은 비워진 기본값 유지
+ * 18. 오픈/오픈 디자인 태스크의 이벤트 구분 필드 입력 로직을 보강하고 생성 후 재적용 처리 추가
+ * 19. 오픈 디자인의 스토리 수량은 파란 박스 수 대신 메이크스타 특전~유의사항 구간의 For./Special 항목 수로 계산
+ * ============================================================
+ */
+
+// ── 설정값 ────────────────────────────────────────────────────
+const ASANA_TOKEN     = 'YOUR_ASANA_PERSONAL_ACCESS_TOKEN';
+const TESTFARM_GID    = '1213881735025332';
+const ASSIGNEE_GID    = '1144816139914898'; // 최충훈/디자인센터
+const DUE_DAYS_OFFSET = 7;
+
+// TESTFARM 커스텀 필드 GID
+const CF_STATUS           = '1207665965030077';
+const CF_STATUS_PROGRESS  = '1207665965030078'; // 진행
+const CF_TASK_TYPE        = '1213891002087335';
+const CF_TASK_TYPE_MD     = '1213891002087339'; // MD
+const CF_TASK_TYPE_PC     = '1213891002087338'; // 포토카드
+const CF_TASK_TYPE_UPDATE = '1213891002087337'; // 업데이트
+
+// 오픈 태스크용 커스텀 필드 값
+// 아래 값은 실제 Asana 환경의 enum option gid로 교체하면 커스텀 필드까지 자동 입력됩니다.
+// 비워두면 태스크 생성은 되지만, 해당 필드는 자동 입력하지 않습니다.
+const CF_TASK_TYPE_OPEN   = '';
+const CF_TASK_TYPE_VMD    = ''; // 반드시 Asana의 'VMD' enum option gid 입력
+const CF_TASK_TYPE_ETC    = '';
+const CF_TASK_TYPE_WINNER = ''; // 사용하지 않을 경우 비워두고, 당첨자 선정은 기타 값(CF_TASK_TYPE_ETC) 사용 권장
+const CF_EVENT_TYPE       = ''; // 멀티 선택 이벤트 구분 필드 gid
+const CF_EVENT_BENEFIT    = '';
+const CF_EVENT_SHOWCASE   = '';
+const CF_EVENT_VC1        = '';
+const CF_EVENT_VC2        = '';
+const CF_EVENT_FACE       = '';
+const CF_EVENT_PHOTO      = '';
+const CF_EVENT_OFFLINE    = '';
+const CF_EVENT_OFFLINE_LD = '';
+const CF_EVENT_FUNDING    = '';
+const CF_EVENT_ETC        = '';
+
+// 포토카드 파싱 제외 키워드
+const EXCLUDE_KEYWORDS_PC = ['참석권', '관람권', '앨범', '이벤트', '키링', '폴라로이드', '포스트잇'];
+
+// 특전 판단 키워드
+const BENEFIT_KEYWORDS = [
+  '키링', '뱃지', '카드', '엽서', 'L홀더', '우표',
+  '인화 2컷', '인화 4컷', '증명사진', '탑로더', '볼펜',
+  '골 트래커', '골트래커', '메시지 카드', '스티커', '메모지', '시험지'
+];
+
+// ★ 수정 2: 특전 파싱 제외 패턴
+// 일반 키워드 부분 일치가 아니라, "증정 조건 설명 문장"만 정규식으로 제외
+const EXCLUDE_PATTERNS_BENEFIT = [
+  /한\s*주문\s*건에서.*구매\s*시/i,
+  /중복\s*없이.*세트\s*증정/i,
+  /추가\s*증정/i
+];
+
+// 손그림/글씨 O 판정 키워드
+const HANDWRITING_KEYWORDS = [
+  '부적', '상장', '탐정', '메시지', '생일', '프리쿠라',
+  '메세지', '낙서', '행운'
+];
+// ──────────────────────────────────────────────────────────────
+
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Asana 자동화')
+    .addItem('🚀 전체 태스크 생성', 'runAllAutomation')
+    .addSeparator()
+    .addItem('📋 MD + 업데이트 태스크 생성', 'runPhotocardAutomation')
+    .addItem('🛍️ 오픈 태스크 생성', 'runOpenAutomation')
+    .addSeparator()
+    .addItem('⚙️ 연결 테스트', 'testAsanaConnection')
+    .addToUi();
+}
+
+
+function runAllAutomation() {
+  var ui = SpreadsheetApp.getUi();
+
+  if (!ASANA_TOKEN || ASANA_TOKEN.length < 10) {
+    ui.alert('⚠️ 설정 필요', 'ASANA_TOKEN을 입력해주세요.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var productCode = getProductCode_(sheet);
+  if (!productCode) {
+    ui.alert('❌ 상품코드 없음', '시트에서 상품코드를 찾지 못했습니다.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var photocards = parsePhotocards_(sheet);
+  var benefits   = parseBenefits_(sheet);
+  var openContext = buildOpenContext_(sheet, productCode);
+  var pcTotal = photocards.reduce(function(s, p) { return s + p.count; }, 0);
+  var spTotal = benefits.reduce(function(s, b) { return s + b.count; }, 0);
+  var hasMdUpdate = photocards.length > 0 || benefits.length > 0;
+  var createVmd = shouldCreateVmdTask_(openContext.eventLabels);
+  var createWinner = shouldCreateWinnerAnnouncementTask_(openContext.eventLabels);
+
+  var summary = [
+    '상품코드: ' + productCode,
+    '',
+    '생성 예정 태스크:'
+  ];
+
+  if (hasMdUpdate) {
+    summary.push('1. [' + productCode + '] MD');
+    summary.push('   └ 포토카드 / ' + photocards.length + '세트 총' + pcTotal + '종');
+    summary.push('   └ 특전 / ' + benefits.length + '종 총' + spTotal + '종');
+    summary.push('2. [' + productCode + '] 업데이트');
+    summary.push('   └ [' + productCode + '] 업데이트 / ' + (photocards.length + benefits.length) + '종');
+  } else {
+    summary.push('1. MD / 업데이트: 생성 안 함 (포토카드/특전 데이터 없음)');
+  }
+
+  summary.push((hasMdUpdate ? '3' : '2') + '. [' + productCode + '] 오픈');
+  summary.push('   └ [' + productCode + '] 오픈 디자인');
+
+  if (createVmd) {
+    summary.push('- [' + productCode + '] VMD');
+  }
+
+  if (createWinner) {
+    summary.push('- [' + productCode + '] 당첨자 선정');
+  }
+
+  summary.push('');
+  summary.push('이벤트 구분: ' + openContext.eventLabels.join(', '));
+  summary.push('파란 테두리 박스 수: ' + openContext.blueBoxCount);
+  summary.push('통이미지 작업 필요 여부: ' + openContext.compositeImageNeeded);
+  summary.push('스토리: ' + openContext.storyCount + '종');
+  summary.push('SNS: ' + openContext.snsItems.length + '종');
+  summary.push('팩샷 포함: ' + (openContext.includePackshot ? '예' : '아니오'));
+  summary.push('');
+  summary.push('TESTFARM에 전체 태스크를 생성하시겠습니까?');
+
+  var confirm = ui.alert('✅ 전체 태스크 생성 확인', summary.join('\n'), ui.ButtonSet.YES_NO);
+  if (confirm !== ui.Button.YES) return;
+
+  try {
+    var sectionGid = getOrCreateSection_(TESTFARM_GID, '[' + productCode + ']');
+
+    if (createWinner) {
+      createWinnerAnnouncementTask_(productCode, openContext, sectionGid);
+    }
+
+    if (createVmd) {
+      createVmdTask_(productCode, openContext, sectionGid);
+    }
+
+    if (hasMdUpdate) {
+      createMdTasks_(productCode, photocards, pcTotal, benefits, spTotal, sectionGid);
+      createUpdateTasks_(productCode, photocards, benefits, sectionGid);
+    }
+
+    createOpenTasks_(productCode, openContext, sectionGid);
+
+    ui.alert(
+      '🎉 전체 생성 완료',
+      '[' + productCode + '] 관련 태스크가 생성됐습니다.\n' +
+      'https://app.asana.com/0/' + TESTFARM_GID,
+      ui.ButtonSet.OK
+    );
+  } catch (e) {
+    ui.alert('❌ 오류 발생', e.message, ui.ButtonSet.OK);
+    Logger.log(e.stack);
+  }
+}
+
+function runPhotocardAutomation() {
+  var ui = SpreadsheetApp.getUi();
+
+  if (!ASANA_TOKEN || ASANA_TOKEN.length < 10) {
+    ui.alert('⚠️ 설정 필요', 'ASANA_TOKEN을 입력해주세요.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  var productCode = getProductCode_(sheet);
+  if (!productCode) {
+    ui.alert('❌ 상품코드 없음', '시트에서 상품코드를 찾지 못했습니다.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var photocards = parsePhotocards_(sheet);
+  var benefits   = parseBenefits_(sheet);
+
+  if (photocards.length === 0 && benefits.length === 0) {
+    ui.alert('❌ 데이터 없음', '포토카드와 특전 항목 모두 찾지 못했습니다.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var pcTotal = photocards.reduce(function(s,p){ return s+p.count; }, 0);
+  var spTotal = benefits.reduce(function(s,b){ return s+b.count; }, 0);
+  var pcPreview = photocards.length > 0
+    ? photocards.map(function(p){
+        return '  '+p.name+' ('+p.count+'종)'+(hasKeyword_(p.name,HANDWRITING_KEYWORDS)?' ✏️':'');
+      }).join('\n')
+    : '  (없음)';
+
+  var spPreview = benefits.length > 0
+    ? benefits.map(function(b){
+        return '  '+b.name+' ('+b.count+'종)'+(hasKeyword_(b.name,HANDWRITING_KEYWORDS)?' ✏️':'');
+      }).join('\n')
+    : '  (없음)';
+
+  var confirm = ui.alert(
+    '✅ 생성 확인',
+    '상품코드: '+productCode+'\n\n'+
+    '① ['+productCode+'] MD\n'+
+    '   └ 포토카드 / '+photocards.length+'세트 총'+pcTotal+'종\n'+
+    pcPreview+'\n'+
+    '   └ 특전 / '+benefits.length+'종 총'+spTotal+'종\n'+
+    spPreview+'\n\n'+
+    '② ['+productCode+'] 업데이트\n'+       // ★ 수정 1: 슬래시/종수 없음
+    '   └ ['+productCode+'] 업데이트 / '+(photocards.length + benefits.length)+'종\n\n'+
+    '(✏️ = 손그림/글씨 O 자동 기입)\n\n'+
+    'TESTFARM에 생성하시겠습니까?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (confirm !== ui.Button.YES) return;
+
+  try {
+    var sectionGid = getOrCreateSection_(TESTFARM_GID, '['+productCode+']');
+    createMdTasks_(productCode, photocards, pcTotal, benefits, spTotal, sectionGid);
+    createUpdateTasks_(productCode, photocards, benefits, sectionGid);
+
+    ui.alert(
+      '🎉 생성 완료',
+      '['+productCode+'] 섹션과 태스크가 생성됐습니다.\n'+
+      'https://app.asana.com/0/'+TESTFARM_GID,
+      ui.ButtonSet.OK
+    );
+  } catch(e) {
+    ui.alert('❌ 오류 발생', e.message, ui.ButtonSet.OK);
+    Logger.log(e.stack);
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  MD 태스크 생성
+// ══════════════════════════════════════════════════════════════
+
+function runOpenAutomation() {
+  var ui = SpreadsheetApp.getUi();
+
+  if (!ASANA_TOKEN || ASANA_TOKEN.length < 10) {
+    ui.alert('⚠️ 설정 필요', 'ASANA_TOKEN을 입력해주세요.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var productCode = getProductCode_(sheet);
+  if (!productCode) {
+    ui.alert('❌ 상품코드 없음', '시트에서 상품코드를 찾지 못했습니다.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var openContext = buildOpenContext_(sheet, productCode);
+  var confirm = ui.alert(
+    '✅ 오픈 태스크 생성 확인',
+    '상품코드: ' + productCode + '\n\n' +
+    '오픈 이벤트 구분: ' + openContext.eventLabels.join(', ') + '\n' +
+    '파란 테두리 박스 수: ' + openContext.blueBoxCount + '\n' +
+    '통이미지 작업 필요 여부: ' + openContext.compositeImageNeeded + '\n' +
+    '스토리: ' + openContext.storyCount + '종\n' +
+    'SNS: ' + openContext.snsItems.length + '종\n' +
+    '팩샷 포함: ' + (openContext.includePackshot ? '예' : '아니오') + '\n\n' +
+    'TESTFARM에 오픈 태스크를 생성하시겠습니까?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (confirm !== ui.Button.YES) return;
+
+  try {
+    var sectionGid = getOrCreateSection_(TESTFARM_GID, '[' + productCode + ']');
+    createOpenTasks_(productCode, openContext, sectionGid);
+
+    ui.alert(
+      '🎉 오픈 태스크 생성 완료',
+      '[' + productCode + '] 오픈 태스크가 생성됐습니다.\n' +
+      'https://app.asana.com/0/' + TESTFARM_GID,
+      ui.ButtonSet.OK
+    );
+  } catch (e) {
+    ui.alert('❌ 오류 발생', e.message, ui.ButtonSet.OK);
+    Logger.log(e.stack);
+  }
+}
+
+function createMdTasks_(productCode, photocards, pcTotal, benefits, spTotal, sectionGid) {
+  var dueDate    = getDueDate_(DUE_DAYS_OFFSET);
+  var mdName     = '['+productCode+'] MD';
+  var pcTaskName = '['+productCode+'] 포토카드 / '+photocards.length+'세트 총'+pcTotal+'종';
+  var spTaskName = '['+productCode+'] 특전 / '+benefits.length+'종 총'+spTotal+'종';
+
+  var cfMd = {};
+  cfMd[CF_STATUS]    = CF_STATUS_PROGRESS;
+  cfMd[CF_TASK_TYPE] = CF_TASK_TYPE_MD;
+
+  var mdGid = createTask_({
+    name:          mdName,
+    projects:      [TESTFARM_GID],
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    notes:         '발주 후 "완료" 처리 부탁드립니다!',
+    followers:     [ASSIGNEE_GID],
+    custom_fields: cfMd
+  });
+  addTaskToSection_(mdGid, sectionGid);
+  Logger.log('MD: '+mdGid);
+
+  if (photocards.length > 0) {
+    var cfPc = {};
+    cfPc[CF_TASK_TYPE] = CF_TASK_TYPE_PC;
+    createTask_({
+      name:          pcTaskName,
+      parent:        mdGid,
+      assignee:      ASSIGNEE_GID,
+      due_on:        dueDate,
+      html_notes:    buildPhotocardDescription_(photocards),
+      followers:     [ASSIGNEE_GID],
+      custom_fields: cfPc
+    });
+    Logger.log('포토카드: '+pcTaskName);
+  }
+
+  var cfSp = {};
+  cfSp[CF_TASK_TYPE] = CF_TASK_TYPE_MD;
+  createTask_({
+    name:          spTaskName,
+    parent:        mdGid,
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    html_notes:    buildBenefitDescription_(benefits),
+    followers:     [ASSIGNEE_GID],
+    custom_fields: cfSp
+  });
+  Logger.log('특전: '+spTaskName);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  업데이트 태스크 생성
+// ══════════════════════════════════════════════════════════════
+
+function createUpdateTasks_(productCode, photocards, benefits, sectionGid) {
+  var dueDate    = getDueDate_(DUE_DAYS_OFFSET);
+  var outputCount = photocards.length + benefits.length;
+
+  // ★ 수정 1: 상위 태스크 이름 — 슬래시/종수 없이 단순하게
+  var upName    = '['+productCode+'] 업데이트';
+  // 하위 태스크 이름 — 포토카드 + 특전 전체 산출물 수 반영
+  var upSubName = '['+productCode+'] 업데이트 / '+outputCount+'종';
+
+  var cfUp = {};
+  cfUp[CF_STATUS]    = CF_STATUS_PROGRESS;
+  cfUp[CF_TASK_TYPE] = CF_TASK_TYPE_UPDATE;
+
+  var upGid = createTask_({
+    name:          upName,
+    projects:      [TESTFARM_GID],
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    notes:         'SNS 발행 후 "완료" 처리 부탁드립니다!',
+    followers:     [ASSIGNEE_GID],
+    custom_fields: cfUp
+  });
+  addTaskToSection_(upGid, sectionGid);
+  Logger.log('업데이트 상위: '+upGid);
+
+  var cfUpSub = {};
+  cfUpSub[CF_TASK_TYPE] = CF_TASK_TYPE_UPDATE;
+
+  createTask_({
+    name:          upSubName,
+    parent:        upGid,
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    html_notes:    buildUpdateDescription_(photocards, benefits),
+    followers:     [ASSIGNEE_GID],
+    custom_fields: cfUpSub
+  });
+  Logger.log('업데이트 하위: '+upSubName);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  설명 HTML 빌더
+// ══════════════════════════════════════════════════════════════
+
+function buildPhotocardDescription_(photocards) {
+  var html   = '<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>';
+
+  for (var i = 0; i < photocards.length; i++) {
+    var pc      = photocards[i];
+    var hwValue = hasKeyword_(pc.name, HANDWRITING_KEYWORDS) ? 'O' : 'X';
+
+    html += '\n\n<strong>'+pc.name+' ('+pc.count+'종)</strong>';
+    html += '<ol>';
+    html += '<li>스펙<ol type="a"><li>(55*85가 아닐 경우, 주문 상세 페이지 URL 또는 스펙 공유)</li></ol></li>';
+    html += '<li>문의<ol type="a"><li>손그림, 글씨 사용 여부 : '+hwValue+'</li></ol></li>';
+    html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
+    html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol></li>';
+    html += '</ol>';
+  }
+
+  html += '</body>';
+  return html;
+}
+
+function buildBenefitDescription_(benefits) {
+  var html   = '<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>';
+
+  for (var i = 0; i < benefits.length; i++) {
+    var b       = benefits[i];
+    var hwValue = hasKeyword_(b.name, HANDWRITING_KEYWORDS) ? 'O' : 'X';
+
+    html += '\n\n<strong>'+b.name+' ('+b.count+'종)</strong>';
+    html += '<ol>';
+    html += '<li>스펙<ol type="a">';
+    html += '<li>주문 상세 페이지 URL</li>';
+    html += '<li>(또는 상품 스펙)</li>';
+    html += '</ol></li>';
+    html += '<li>문의<ol type="a"><li>손그림, 글씨 사용 여부 : '+hwValue+'</li></ol></li>';
+    html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
+    html += '<li>공유, 요청<ol type="a"><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol></li>';
+    html += '</ol>';
+  }
+
+  html += '</body>';
+  return html;
+}
+
+function buildUpdateDescription_(photocards, benefits) {
+  var html = '<body>';
+  html += '<strong>자료</strong>';
+  html += '<ol><li>URL 또는 MAS 위치</li></ol>';
+
+  html += '\n\n<strong>문의</strong>';
+  html += '<ol>';
+  html += '<li>블러 강도 <strong>(3)</strong>단계</li>';
+  html += '<li>(자료 수급 일정)</li>';
+  html += '</ol>';
+
+  html += '\n\n<strong>공유, 요청</strong>';
+  html += '<ol><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol>';
+
+  var outputItems = [];
+  for (var i = 0; i < photocards.length; i++) {
+    outputItems.push('<li>'+photocards[i].name+' ('+photocards[i].count+'종)</li>');
+  }
+  for (var j = 0; j < benefits.length; j++) {
+    outputItems.push('<li>'+benefits[j].name+' ('+benefits[j].count+'종)</li>');
+  }
+
+  if (outputItems.length > 0) {
+    html += '\n\n<strong>필요한 산출물</strong>';
+    html += '<ol>'+outputItems.join('')+'</ol>';
+    html += '\n\n<em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>';
+  }
+
+  html += '</body>';
+  return html;
+}
+
+function createOpenTasks_(productCode, openContext, sectionGid) {
+  var dueDate        = getDueDate_(DUE_DAYS_OFFSET);
+  var openName       = '[' + productCode + '] 오픈';
+  var openDesignName = '[' + productCode + '] 오픈 디자인';
+  var openCustomFields = buildOpenTaskCustomFields_(openContext.eventLabels);
+
+  var openGid = createTask_({
+    name:          openName,
+    projects:      [TESTFARM_GID],
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    notes:         buildOpenParentNotes_(openContext),
+    followers:     [ASSIGNEE_GID],
+    custom_fields: openCustomFields
+  });
+  addTaskToSection_(openGid, sectionGid);
+  setEventFieldOnTask_(openGid, openContext.eventLabels);
+  Logger.log('오픈 상위: ' + openGid);
+
+  var openDesignGid = createTask_({
+    name:          openDesignName,
+    parent:        openGid,
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    html_notes:    buildOpenDescription_(openContext),
+    followers:     [ASSIGNEE_GID],
+    custom_fields: buildOpenTaskCustomFields_(openContext.eventLabels)
+  });
+  setEventFieldOnTask_(openDesignGid, openContext.eventLabels);
+  Logger.log('오픈 하위: ' + openDesignName);
+}
+
+function buildOpenTaskCustomFields_(eventLabels) {
+  var customFields = {};
+  customFields[CF_STATUS] = CF_STATUS_PROGRESS;
+  applyCustomFieldIfValid_(customFields, CF_TASK_TYPE, CF_TASK_TYPE_OPEN);
+  applyEventFieldCustomFieldIfValid_(customFields, CF_EVENT_TYPE, getOpenEventOptionIds_(eventLabels));
+  return customFields;
+}
+
+function buildBasicTaskCustomFields_(taskTypeOptionGid) {
+  var customFields = {};
+  customFields[CF_STATUS] = CF_STATUS_PROGRESS;
+  applyCustomFieldIfValid_(customFields, CF_TASK_TYPE, taskTypeOptionGid);
+  return customFields;
+}
+
+function buildTaskTypeOnlyCustomFields_(taskTypeOptionGid) {
+  var customFields = {};
+  applyCustomFieldIfValid_(customFields, CF_TASK_TYPE, taskTypeOptionGid);
+  return customFields;
+}
+
+function buildOpenParentNotes_(openContext) {
+  return [
+    '• 페이지 작업 후 "완료" 처리 부탁드립니다!',
+    '• 이벤트 구분 필드는 시트 내용을 기준으로 자동 반영됩니다. 필요 시 Asana에서 최종 확인해주세요.'
+  ].join('\n');
+}
+
+function createVmdTask_(productCode, openContext, sectionGid) {
+  var dueDate = getDueDate_(DUE_DAYS_OFFSET);
+  var vmdName = '[' + productCode + '] VMD';
+  var vmdChildName = '[' + productCode + '] VMD / (' + openContext.vmdItemCount + ')종';
+
+  var vmdGid = createTask_({
+    name:          vmdName,
+    projects:      [TESTFARM_GID],
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    notes:         '* 발주 후 "완료" 처리 부탁드립니다!',
+    followers:     [ASSIGNEE_GID],
+    custom_fields: buildBasicTaskCustomFields_(CF_TASK_TYPE_VMD)
+  });
+  addTaskToSection_(vmdGid, sectionGid);
+
+  createTask_({
+    name:          vmdChildName,
+    parent:        vmdGid,
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    html_notes:    buildVmdDescription_(openContext),
+    followers:     [ASSIGNEE_GID],
+    custom_fields: buildTaskTypeOnlyCustomFields_(CF_TASK_TYPE_VMD)
+  });
+  Logger.log('VMD: ' + vmdName + ' / ' + vmdChildName);
+}
+
+function createWinnerAnnouncementTask_(productCode, openContext, sectionGid) {
+  var dueDate = getDueDate_(DUE_DAYS_OFFSET);
+  var winnerName = '[' + productCode + '] 당첨자 선정';
+
+  var winnerGid = createTask_({
+    name:          winnerName,
+    projects:      [TESTFARM_GID],
+    assignee:      ASSIGNEE_GID,
+    due_on:        dueDate,
+    notes:         '당첨자 관련 업무 스케줄링을 위한 태스크 입니다!',
+    custom_fields: buildWinnerTaskCustomFields_()
+  });
+  addTaskToSection_(winnerGid, sectionGid);
+  Logger.log('당첨자 선정: ' + winnerName);
+}
+
+function buildWinnerTaskCustomFields_() {
+  var customFields = {};
+  customFields[CF_STATUS] = CF_STATUS_PROGRESS;
+  applyCustomFieldIfValid_(customFields, CF_TASK_TYPE, CF_TASK_TYPE_ETC);
+  return customFields;
+}
+
+function buildVmdDescription_(openContext) {
+  var sections = [];
+  sections.push('<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>');
+
+  for (var i = 0; i < openContext.vmdItemCount; i++) {
+    var label = getAlphaLabel_(i);
+    sections.push('<strong>항목 ' + label + '</strong>');
+    sections.push('<ol>' +
+      '<li>스펙<ol type="a"><li>주문 상세 페이지 URL</li><li>(또는 상품 스펙)</li></ol></li>' +
+      '<li>문의<ol type="a"><li>손그림, 글씨 사용 여부 : X</li></ol></li>' +
+      '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>' +
+      '<li>공유, 요청<ol type="a"><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol></li>' +
+    '</ol>');
+  }
+
+  sections.push('</body>');
+  return sections.join('\n');
+}
+
+function buildWinnerAnnouncementDescription_(openContext) {
+  return '당첨자 관련 업무 스케줄링을 위한 태스크 입니다!';
+}
+
+function buildOpenDescription_(openContext) {
+  var outputItems = [];
+  outputItems.push('<li>메인 배너 (PC)</li>');
+  outputItems.push('<li>메인 배너 (모바일)</li>');
+  outputItems.push('<li>서브 배너</li>');
+  outputItems.push('<li>스토리 ' + openContext.storyCount + '종</li>');
+  if (openContext.includePackshot) outputItems.push('<li>팩샷</li>');
+
+  var snsHtml = '<li>SNS ' + openContext.snsItems.length + '종 / <a href="' + openContext.planningUrl + '">URL &gt;</a><ol type="a">';
+  for (var i = 0; i < openContext.snsItems.length; i++) {
+    snsHtml += '<li>' + openContext.snsItems[i] + '</li>';
+  }
+  snsHtml += '</ol></li>';
+  outputItems.push(snsHtml);
+
+  var sections = [];
+  sections.push('<em>*불필요한 내용은 삭제하셔도 좋습니다!</em>');
+  sections.push('<strong>기획서</strong><ol><li><a href="' + openContext.planningUrl + '">URL &gt;</a></li></ol>');
+  sections.push('<strong>자료</strong><ol><li>URL 또는 MAS 위치</li></ol>');
+  sections.push('<strong>문의</strong><ol><li>통이미지 작업 필요 여부 : ' + openContext.compositeImageNeeded + '</li></ol>');
+  sections.push('<strong>공유, 요청</strong><ol><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol>');
+  sections.push('<strong>필요한 산출물</strong><ol>' + outputItems.join('') + '</ol>');
+  sections.push('<em>*더 필요한 산출물을 추가, 사용하지 않는 산출물은 삭제해주세요!</em>');
+  return '<body>' + sections.join('\n') + '</body>';
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  시트 파싱
+// ══════════════════════════════════════════════════════════════
+
+function buildOpenContext_(sheet, productCode) {
+  var blueBoxCount = countBlueBorderGroups_(sheet);
+  var storyCount   = countOpenStoryItems_(sheet);
+  var eventLabels  = detectOpenEvents_(sheet);
+  var includePackshot = !hasExistingProductCodeTask_(productCode);
+
+  return {
+    planningUrl:            getActiveSheetUrl_(sheet),
+    blueBoxCount:           blueBoxCount,
+    storyCount:             storyCount,
+    vmdItemCount:           Math.max(storyCount, 1),
+    compositeImageNeeded:   blueBoxCount === 1 ? 'O' : 'X',
+    eventLabels:            eventLabels,
+    hasPromoEvent:          sheetContainsAny_(sheet, ['홍보 이벤트']),
+    needsScheduleNotice:    eventLabels.indexOf('대면') !== -1 || eventLabels.indexOf('쇼케이스 초대') !== -1,
+    isCombinedEvent:        hasCombinedOpenEvent_(eventLabels),
+    includePackshot:        includePackshot,
+    snsItems:               buildOpenSnsItems_(sheet, eventLabels)
+  };
+}
+
+function getProductCode_(sheet) {
+  var data = sheet.getDataRange().getValues();
+  for (var i = 0; i < data.length; i++) {
+    for (var j = 0; j < data[i].length; j++) {
+      var cell = String(data[i][j]).trim();
+      if (cell === '상품코드' && j+1 < data[i].length) {
+        var code = String(data[i][j+1]).trim();
+        if (code) return code;
+      }
+      var m = cell.match(/^(P_\d+[A-Z0-9_]*)$/i);
+      if (m) return m[1];
+    }
+  }
+  return null;
+}
+
+function parsePhotocards_(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var results = [], seen = {}, inSection = false;
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].join(' ').indexOf('메이크스타 특전') !== -1) inSection = true;
+    if (!inSection) continue;
+
+    for (var j = 0; j < data[i].length; j++) {
+      var cell = String(data[i][j]).trim();
+      if (!cell || cell.indexOf('포토카드') === -1) continue;
+
+      var excluded = false;
+      for (var k = 0; k < EXCLUDE_KEYWORDS_PC.length; k++) {
+        if (cell.indexOf(EXCLUDE_KEYWORDS_PC[k]) !== -1) { excluded = true; break; }
+      }
+      if (excluded) continue;
+
+      var cm = cell.match(/(\d+)\s*(?:매|종)/);
+      if (!cm) continue;
+      var count = parseInt(cm[1], 10);
+
+      var name = cell
+        .replace(/^\d+\.\s*/, '').replace(/^[-•]\s*/, '')
+        .replace(/\s*\d+\s*(?:매|종).*$/, '').replace(/\s*\(.*?\)/g, '')
+        .replace(/\s*-.*$/, '').trim();
+
+      if (!name || name.length < 3 || seen[name]) continue;
+      seen[name] = true;
+      results.push({ name: name, count: count });
+    }
+  }
+  return results;
+}
+
+function parseBenefits_(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var results = [], seen = {}, inSection = false;
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].join(' ').indexOf('메이크스타 특전') !== -1) inSection = true;
+    if (!inSection) continue;
+
+    for (var j = 0; j < data[i].length; j++) {
+      var cell = String(data[i][j]).trim();
+      if (!cell) continue;
+
+      var benefitKeyword = findBenefitKeyword_(cell);
+      if (!benefitKeyword) continue;
+      if (cell.indexOf('포토카드') !== -1) continue;
+
+      var benefitItem = extractBenefitItem_(cell, benefitKeyword);
+      if (!benefitItem) continue;
+
+      // ★ 수정 2: "한 주문 건에서..." 같은 조건 문장은 제외하되,
+      // 실제 특전명 + 수량(예: 키링 1종)이 함께 있는 항목은 살린다.
+      if (shouldExcludeBenefitCell_(cell, benefitItem.name, benefitItem.count)) continue;
+
+      if (seen[benefitItem.name] !== undefined) {
+        results[seen[benefitItem.name]].count += benefitItem.count;
+      } else {
+        seen[benefitItem.name] = results.length;
+        results.push({ name: benefitItem.name, count: benefitItem.count });
+      }
+    }
+  }
+  return results;
+}
+
+function shouldExcludeBenefitCell_(cell, benefitName, count) {
+  var normalized = String(cell).replace(/\s+/g, ' ').trim();
+
+  // 실제 특전 항목이면 제외하지 않음
+  var concreteBenefitPattern = new RegExp(escapeRegExp_(benefitName) + '\\s*' + count + '\\s*(?:매|종|개)');
+  if (concreteBenefitPattern.test(normalized)) return false;
+
+  for (var i = 0; i < EXCLUDE_PATTERNS_BENEFIT.length; i++) {
+    if (EXCLUDE_PATTERNS_BENEFIT[i].test(normalized)) return true;
+  }
+  return false;
+}
+
+function extractBenefitItem_(cell, benefitKeyword) {
+  var normalized = String(cell).replace(/\s+/g, ' ').trim();
+  var escapedKeyword = escapeRegExp_(benefitKeyword);
+  var match = normalized.match(new RegExp('(.{0,80}?' + escapedKeyword + ')\\s*(\\d+)\\s*(?:매|종|개)'));
+  if (!match) return null;
+
+  var name = match[1]
+    .replace(/^\d+\.\s*/, '')
+    .replace(/^[-•]\s*/, '')
+    .replace(/.*(?:구매\s*시|특전\s*[:：]|증정품\s*[:：]|구성\s*[:：]|\/|,|·)\s*/, '')
+    .replace(/\s*\(.*?\)\s*$/g, '')
+    .trim();
+
+  if (!name || name.length < 2) return null;
+
+  return {
+    name: name,
+    count: parseInt(match[2], 10)
+  };
+}
+
+function escapeRegExp_(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findBenefitKeyword_(text) {
+  for (var i = 0; i < BENEFIT_KEYWORDS.length; i++) {
+    if (text.indexOf(BENEFIT_KEYWORDS[i]) !== -1) return BENEFIT_KEYWORDS[i];
+  }
+  return null;
+}
+
+function hasKeyword_(text, keywords) {
+  for (var i = 0; i < keywords.length; i++) {
+    if (text.indexOf(keywords[i]) !== -1) return true;
+  }
+  return false;
+}
+
+function getActiveSheetUrl_(sheet) {
+  return sheet.getParent().getUrl() + '#gid=' + sheet.getSheetId();
+}
+
+function countOpenStoryItems_(sheet) {
+  var values = sheet.getDataRange().getDisplayValues();
+  var inTargetRange = false;
+  var count = 0;
+
+  for (var i = 0; i < values.length; i++) {
+    var rowText = values[i].join(' ').trim();
+
+    if (!inTargetRange) {
+      if (rowText.indexOf('메이크스타 특전') !== -1) {
+        inTargetRange = true;
+      }
+      continue;
+    }
+
+    if (rowText.indexOf('유의사항') !== -1) {
+      break;
+    }
+
+    for (var j = 0; j < values[i].length; j++) {
+      var cell = String(values[i][j] || '');
+      if (!cell) continue;
+
+      var lines = cell.split(/\r?\n/);
+      for (var k = 0; k < lines.length; k++) {
+        var line = lines[k].trim();
+        if (/^For\.\s*.+/i.test(line) || /^Special\s+.+/i.test(line)) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+function detectOpenEvents_(sheet) {
+  var text = getSheetDisplayText_(sheet);
+  var normalized = normalizeOpenEventText_(text);
+  var labels = [];
+
+  if (/(증정|특전|포토카드|포카|스페셜\s*기프트|special\s*gift|special\s*benefit|benefit|photocard|photo\s*card|gift)/i.test(normalized)) {
+    pushUnique_(labels, '특전');
+  }
+
+  if (/(쇼케이스|showcase|초대|invite|invitation)/i.test(normalized)) {
+    pushUnique_(labels, '쇼케이스 초대');
+  }
+
+  var vcCount = countKeywordOccurrences_(normalized, /(영상통화|영통|video\s*call|video-call|videocall)/ig);
+  if (vcCount >= 1) pushUnique_(labels, '영통 1');
+  if (vcCount >= 2) pushUnique_(labels, '영통 2');
+
+  if (/(팬사인회|팬미팅|대면|fansign|fan\s*sign|fanmeeting|fan\s*meeting|in\s*person)/i.test(normalized)) {
+    pushUnique_(labels, '대면');
+  }
+
+  if (/(1\s*:\s*1\s*포토회|1대1\s*포토회|포토회|1\s*:\s*1\s*photo|1\s*to\s*1\s*photo|photo\s*event|photo\s*session)/i.test(normalized)) {
+    pushUnique_(labels, '포토');
+  }
+
+  if (/(베이커리|게임회|bakery|game\s*event|game\s*meeting)/i.test(normalized)) {
+    pushUnique_(labels, '오프라인 이벤트');
+  }
+
+  if (/(오프라인\s*럭키드로우|offline\s*lucky\s*draw|lucky\s*draw)/i.test(normalized)) {
+    pushUnique_(labels, '오프라인 럭키드로우');
+  }
+
+  if (/(펀딩|funding)/i.test(normalized)) {
+    pushUnique_(labels, '펀딩');
+  }
+
+  if (labels.length === 0) labels.push('기타');
+  return sortOpenEventLabels_(labels);
+}
+
+function countKeywordOccurrences_(text, regex) {
+  var matches = String(text).match(regex);
+  return matches ? matches.length : 0;
+}
+
+function getSheetDisplayText_(sheet) {
+  return sheet.getDataRange().getDisplayValues().map(function(row) {
+    return row.join(' ');
+  }).join('\n');
+}
+
+function normalizeOpenEventText_(text) {
+  return String(text || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[／]/g, '/')
+    .replace(/[“”"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pushUnique_(items, value) {
+  if (items.indexOf(value) === -1) items.push(value);
+}
+
+function sortOpenEventLabels_(labels) {
+  var order = ['특전', '쇼케이스 초대', '영통 1', '영통 2', '대면', '포토', '오프라인 이벤트', '오프라인 럭키드로우', '펀딩', '기타'];
+  var result = [];
+  for (var i = 0; i < order.length; i++) {
+    if (labels.indexOf(order[i]) !== -1) result.push(order[i]);
+  }
+  return result;
+}
+
+function hasCombinedOpenEvent_(eventLabels) {
+  return eventLabels.length >= 2;
+}
+
+function shouldCreateVmdTask_(eventLabels) {
+  var vmdEventLabels = ['쇼케이스 초대', '대면', '포토', '오프라인 이벤트', '오프라인 럭키드로우'];
+  for (var i = 0; i < vmdEventLabels.length; i++) {
+    if (eventLabels.indexOf(vmdEventLabels[i]) !== -1) return true;
+  }
+  return false;
+}
+
+function shouldCreateWinnerAnnouncementTask_(eventLabels) {
+  return !(eventLabels.length === 1 && eventLabels[0] === '특전');
+}
+
+function getAlphaLabel_(index) {
+  var code = 'A'.charCodeAt(0) + index;
+  return String.fromCharCode(code);
+}
+
+function buildOpenSnsItems_(sheet, eventLabels) {
+  var items = ['메인'];
+  var hasPromoEvent = sheetContainsAny_(sheet, ['홍보 이벤트']);
+  if (hasPromoEvent) {
+    items.push('홍보이벤트 / 국');
+    items.push('홍보이벤트 / 영');
+  }
+
+  if (eventLabels.indexOf('대면') !== -1 || eventLabels.indexOf('쇼케이스 초대') !== -1) {
+    items.push('이벤트 일정 안내');
+  }
+
+  if (hasCombinedOpenEvent_(eventLabels)) {
+    items.push('특전 / 이벤트 A');
+    items.push('특전 / 이벤트 B');
+  } else {
+    items.push('특전');
+  }
+
+  return items;
+}
+
+function sheetContainsAny_(sheet, keywords) {
+  var text = sheet.getDataRange().getDisplayValues().map(function(row) {
+    return row.join(' ');
+  }).join('\n');
+
+  for (var i = 0; i < keywords.length; i++) {
+    if (text.indexOf(keywords[i]) !== -1) return true;
+  }
+  return false;
+}
+
+function countBlueBorderGroups_(sheet) {
+  try {
+    var response = Sheets.Spreadsheets.get(sheet.getParent().getId(), {
+      ranges: [sheet.getName()],
+      includeGridData: true,
+      fields: 'sheets(data(rowData(values(userEnteredFormat(borders)))))'
+    });
+
+    var rowData = (((response.sheets || [])[0] || {}).data || [])[0];
+    rowData = rowData ? (rowData.rowData || []) : [];
+    if (!rowData.length) return 1;
+
+    var grid = [];
+    for (var r = 0; r < rowData.length; r++) {
+      var values = rowData[r].values || [];
+      grid[r] = [];
+      for (var c = 0; c < values.length; c++) {
+        grid[r][c] = isBlueBorderCell_(values[c]);
+      }
+    }
+
+    var visited = {};
+    var count = 0;
+    for (var i = 0; i < grid.length; i++) {
+      for (var j = 0; j < grid[i].length; j++) {
+        if (!grid[i][j]) continue;
+        var key = i + ':' + j;
+        if (visited[key]) continue;
+        count++;
+        var stack = [[i, j]];
+        visited[key] = true;
+
+        while (stack.length > 0) {
+          var node = stack.pop();
+          var nr = node[0];
+          var nc = node[1];
+          var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+          for (var d = 0; d < dirs.length; d++) {
+            var rr = nr + dirs[d][0];
+            var cc = nc + dirs[d][1];
+            if (rr < 0 || cc < 0) continue;
+            if (!grid[rr] || !grid[rr][cc]) continue;
+            var nextKey = rr + ':' + cc;
+            if (visited[nextKey]) continue;
+            visited[nextKey] = true;
+            stack.push([rr, cc]);
+          }
+        }
+      }
+    }
+
+    return Math.max(count, 1);
+  } catch (e) {
+    Logger.log('countBlueBorderGroups_ fallback: ' + e.message);
+    return 1;
+  }
+}
+
+function isBlueBorderCell_(cell) {
+  if (!cell || !cell.userEnteredFormat || !cell.userEnteredFormat.borders) return false;
+  var borders = cell.userEnteredFormat.borders;
+  return isBlueBorderStyle_(borders.top) ||
+    isBlueBorderStyle_(borders.bottom) ||
+    isBlueBorderStyle_(borders.left) ||
+    isBlueBorderStyle_(borders.right);
+}
+
+function isBlueBorderStyle_(border) {
+  if (!border || !border.style || border.style === 'NONE') return false;
+  var color = border.color || {};
+  var red   = color.red || 0;
+  var green = color.green || 0;
+  var blue  = color.blue || 0;
+  return blue >= 0.6 && blue > red && blue > green;
+}
+
+function hasExistingProductCodeTask_(productCode) {
+  var marker = '[' + productCode + ']';
+  var offset = '';
+
+  while (true) {
+    var endpoint = '/projects/' + TESTFARM_GID + '/tasks?limit=100&opt_fields=name';
+    if (offset) endpoint += '&offset=' + encodeURIComponent(offset);
+
+    var body = asanaRequestFull_('get', endpoint, null);
+    var tasks = body.data || [];
+    for (var i = 0; i < tasks.length; i++) {
+      if (String(tasks[i].name || '').indexOf(marker) !== -1) return true;
+    }
+
+    if (!body.next_page || !body.next_page.offset) break;
+    offset = body.next_page.offset;
+  }
+
+  return false;
+}
+
+function getOpenEventOptionIds_(eventLabels) {
+  var map = {
+    '특전': CF_EVENT_BENEFIT,
+    '쇼케이스 초대': CF_EVENT_SHOWCASE,
+    '영통 1': CF_EVENT_VC1,
+    '영통 2': CF_EVENT_VC2,
+    '대면': CF_EVENT_FACE,
+    '포토': CF_EVENT_PHOTO,
+    '오프라인 이벤트': CF_EVENT_OFFLINE,
+    '오프라인 럭키드로우': CF_EVENT_OFFLINE_LD,
+    '펀딩': CF_EVENT_FUNDING,
+    '기타': CF_EVENT_ETC
+  };
+
+  var ids = [];
+  for (var i = 0; i < eventLabels.length; i++) {
+    if (isValidGid_(map[eventLabels[i]])) ids.push(map[eventLabels[i]]);
+  }
+  return ids;
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  Asana API 헬퍼
+// ══════════════════════════════════════════════════════════════
+
+function asanaRequest_(method, endpoint, payload) {
+  var options = {
+    method: method,
+    headers: {
+      'Authorization': 'Bearer '+ASANA_TOKEN,
+      'Content-Type':  'application/json',
+      'Accept':        'application/json'
+    },
+    muteHttpExceptions: true
+  };
+  if (payload !== null && method !== 'get' && method !== 'delete') {
+    options.payload = JSON.stringify({ data: payload });
+  }
+  var response = UrlFetchApp.fetch('https://app.asana.com/api/1.0'+endpoint, options);
+  var code     = response.getResponseCode();
+  if (code === 204) return null;
+  var body = JSON.parse(response.getContentText());
+  if (code < 200 || code >= 300) {
+    var msg = (body.errors && body.errors[0]) ? body.errors[0].message : JSON.stringify(body);
+    throw new Error('Asana API 오류 ('+code+'): '+msg);
+  }
+  return body.data;
+}
+
+function createTask_(payload) {
+  return asanaRequest_('post', '/tasks', payload).gid;
+}
+
+function createSection_(projectGid, name) {
+  return asanaRequest_('post', '/projects/'+projectGid+'/sections', { name: name }).gid;
+}
+
+function getOrCreateSection_(projectGid, name) {
+  var sections = asanaRequest_('get', '/projects/' + projectGid + '/sections', null);
+  for (var i = 0; i < sections.length; i++) {
+    if (sections[i].name === name) return sections[i].gid;
+  }
+  return createSection_(projectGid, name);
+}
+
+function addTaskToSection_(taskGid, sectionGid) {
+  asanaRequest_('post', '/sections/'+sectionGid+'/addTask', { task: taskGid });
+}
+
+function getDueDate_(days) {
+  var d = new Date();
+  d.setDate(d.getDate()+days);
+  return d.getFullYear()+'-'+
+    String(d.getMonth()+1).padStart(2,'0')+'-'+
+    String(d.getDate()).padStart(2,'0');
+}
+
+function asanaRequestFull_(method, endpoint, payload) {
+  var options = {
+    method: method,
+    headers: {
+      'Authorization': 'Bearer ' + ASANA_TOKEN,
+      'Content-Type':  'application/json',
+      'Accept':        'application/json'
+    },
+    muteHttpExceptions: true
+  };
+  if (payload !== null && method !== 'get' && method !== 'delete') {
+    options.payload = JSON.stringify({ data: payload });
+  }
+  var response = UrlFetchApp.fetch('https://app.asana.com/api/1.0' + endpoint, options);
+  var code = response.getResponseCode();
+  if (code === 204) return {};
+  var body = JSON.parse(response.getContentText());
+  if (code < 200 || code >= 300) {
+    var msg = (body.errors && body.errors[0]) ? body.errors[0].message : JSON.stringify(body);
+    throw new Error('Asana API 오류 (' + code + '): ' + msg);
+  }
+  return body;
+}
+
+function isValidGid_(value) {
+  return /^\d+$/.test(String(value || ''));
+}
+
+function applyCustomFieldIfValid_(customFields, fieldGid, optionGid) {
+  if (!isValidGid_(fieldGid) || !isValidGid_(optionGid)) return;
+  customFields[fieldGid] = optionGid;
+}
+
+function applyMultiEnumCustomFieldIfValid_(customFields, fieldGid, optionGids) {
+  if (!isValidGid_(fieldGid)) return;
+  if (!optionGids || optionGids.length === 0) return;
+  customFields[fieldGid] = optionGids;
+}
+
+function applyEventFieldCustomFieldIfValid_(customFields, fieldGid, optionGids) {
+  if (!isValidGid_(fieldGid)) return;
+  var validOptionGids = (optionGids || []).filter(isValidGid_);
+  if (validOptionGids.length === 0) return;
+  customFields[fieldGid] = validOptionGids.length === 1 ? validOptionGids[0] : validOptionGids;
+}
+
+function updateTaskCustomFields_(taskGid, customFields) {
+  if (!isValidGid_(taskGid)) return;
+  if (!customFields || Object.keys(customFields).length === 0) return;
+  asanaRequest_('put', '/tasks/' + taskGid, { custom_fields: customFields });
+}
+
+function setEventFieldOnTask_(taskGid, eventLabels) {
+  if (!isValidGid_(taskGid) || !isValidGid_(CF_EVENT_TYPE)) return;
+
+  var optionIds = getOpenEventOptionIds_(eventLabels);
+  if (!optionIds || optionIds.length === 0) return;
+
+  try {
+    var customFields = {};
+    customFields[CF_EVENT_TYPE] = optionIds;
+    updateTaskCustomFields_(taskGid, customFields);
+    return;
+  } catch (e) {
+    Logger.log('이벤트 구분 배열 입력 재시도: ' + e.message);
+  }
+
+  try {
+    var fallbackFields = {};
+    fallbackFields[CF_EVENT_TYPE] = optionIds[0];
+    updateTaskCustomFields_(taskGid, fallbackFields);
+  } catch (e2) {
+    Logger.log('이벤트 구분 단일값 입력 실패: ' + e2.message);
+  }
+}
+
+function testAsanaConnection() {
+  var ui = SpreadsheetApp.getUi();
+  try {
+    var me = asanaRequest_('get', '/users/me', null);
+    ui.alert('✅ 연결 성공', '인증된 사용자: '+me.name+'\n('+me.email+')', ui.ButtonSet.OK);
+  } catch(e) {
+    ui.alert('❌ 연결 실패', e.message, ui.ButtonSet.OK);
+  }
+}

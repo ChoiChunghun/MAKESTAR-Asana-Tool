@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>99_Sample | One Screen Workflow</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap");
+
+      :root {
+        --bg: #f4efe5;
+        --panel: rgba(255, 250, 243, 0.9);
+        --ink: #1f2a37;
+        --muted: #6b7280;
+        --line: #c9c1b4;
+        --green: #295f4e;
+        --green-soft: #ddf3e9;
+        --amber: #9a5b1f;
+        --amber-soft: #f6e7cf;
+        --rose: #99445a;
+        --rose-soft: #f6dfe7;
+        --blue: #2f5d8a;
+        --blue-soft: #dbe9f6;
+        --purple-soft: #e9e3f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "IBM Plex Sans KR", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(227, 240, 231, 0.95), transparent 30%),
+          radial-gradient(circle at top right, rgba(244, 230, 201, 0.9), transparent 28%),
+          linear-gradient(180deg, #f9f4ec 0%, var(--bg) 100%);
+      }
+
+      .page {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 10px;
+        padding: 16px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        padding: 8px 6px 0;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-family: "DM Serif Display", serif;
+        font-size: clamp(1.4rem, 2vw, 2.2rem);
+        line-height: 1;
+        letter-spacing: 0.01em;
+      }
+
+      .header p {
+        margin: 4px 0 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        background: rgba(255, 255, 255, 0.7);
+        white-space: nowrap;
+      }
+
+      .board {
+        position: relative;
+        width: min(100%, 1460px);
+        margin: 0 auto;
+        aspect-ratio: 16 / 9;
+        border: 1px solid rgba(111, 101, 86, 0.18);
+        border-radius: 26px;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.45)),
+          repeating-linear-gradient(
+            90deg,
+            rgba(41, 95, 78, 0.04) 0,
+            rgba(41, 95, 78, 0.04) 1px,
+            transparent 1px,
+            transparent 8.33%
+          );
+        box-shadow: 0 24px 80px rgba(59, 48, 33, 0.08);
+        overflow: hidden;
+      }
+
+      .lane-label {
+        position: absolute;
+        top: 14px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(31, 42, 55, 0.48);
+      }
+
+      .card {
+        position: absolute;
+        width: 10%;
+        min-height: 8.2%;
+        border: 1px solid rgba(53, 55, 68, 0.13);
+        border-radius: 16px;
+        padding: 9px 10px;
+        background: var(--panel);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 10px 24px rgba(54, 42, 20, 0.08);
+      }
+
+      .card.decision {
+        border-radius: 20px;
+      }
+
+      .card .id {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: rgba(31, 42, 55, 0.5);
+      }
+
+      .card .title {
+        margin-top: 3px;
+        font-size: clamp(0.62rem, 0.72vw, 0.84rem);
+        font-weight: 700;
+        line-height: 1.18;
+      }
+
+      .card .meta {
+        margin-top: 4px;
+        font-size: clamp(0.5rem, 0.58vw, 0.66rem);
+        line-height: 1.22;
+        color: var(--muted);
+      }
+
+      .green { background: var(--green-soft); }
+      .amber { background: var(--amber-soft); }
+      .rose { background: var(--rose-soft); }
+      .blue { background: var(--blue-soft); }
+      .violet { background: var(--purple-soft); }
+
+      svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .flow {
+        fill: none;
+        stroke: rgba(53, 55, 68, 0.42);
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .flow.soft {
+        stroke: rgba(53, 55, 68, 0.26);
+      }
+
+      .arrow-label {
+        font-size: 0.72rem;
+        fill: rgba(31, 42, 55, 0.72);
+        font-weight: 700;
+      }
+
+      .footer-note {
+        position: absolute;
+        right: 18px;
+        bottom: 16px;
+        font-size: 0.74rem;
+        color: rgba(31, 42, 55, 0.55);
+        background: rgba(255, 255, 255, 0.6);
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(111, 101, 86, 0.16);
+      }
+
+      @media (max-width: 920px) {
+        .page {
+          padding: 10px;
+        }
+
+        .header {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .legend {
+          justify-content: flex-start;
+        }
+
+        .board {
+          aspect-ratio: 9 / 16;
+          overflow: auto;
+        }
+
+        .board-inner {
+          position: relative;
+          width: 1100px;
+          height: 680px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <div>
+          <h1>Retouch Request Workflow</h1>
+          <p>한 화면 안에서 전체 분기와 완료 루프를 압축해서 보는 요약 버전</p>
+        </div>
+        <div class="legend">
+          <span class="pill">접수/저장</span>
+          <span class="pill">판단 분기</span>
+          <span class="pill">직접 처리 / AI / 수작업</span>
+          <span class="pill">전달 / 피드백 / 자산화</span>
+        </div>
+      </section>
+
+      <section class="board">
+        <div class="board-inner">
+          <div class="lane-label" style="left: 3.2%">INTAKE</div>
+          <div class="lane-label" style="left: 26.4%">REVIEW</div>
+          <div class="lane-label" style="left: 49.6%">EXECUTION</div>
+          <div class="lane-label" style="left: 72.8%">DELIVERY</div>
+
+          <div class="card green" style="left: 3%; top: 17%; height: 11%;">
+            <div class="id">A</div>
+            <div class="title">요청 접수</div>
+            <div class="meta">Slack 업로드<br />폼 입력</div>
+          </div>
+
+          <div class="card green" style="left: 14.5%; top: 17%; height: 11%;">
+            <div class="id">B</div>
+            <div class="title">데이터 저장</div>
+            <div class="meta">원본 / 요청 / 용도 / 납기 / IP</div>
+          </div>
+
+          <div class="card amber decision" style="left: 26%; top: 17%; height: 11%;">
+            <div class="id">C</div>
+            <div class="title">우려 사항?</div>
+            <div class="meta">리스크 포함 여부</div>
+          </div>
+
+          <div class="card amber decision" style="left: 37.5%; top: 17%; height: 11%;">
+            <div class="id">D</div>
+            <div class="title">연속성 높음?</div>
+            <div class="meta">추가 차수 많음?</div>
+          </div>
+
+          <div class="card amber decision" style="left: 49%; top: 17%; height: 11%;">
+            <div class="id">E</div>
+            <div class="title">IP 만족도?</div>
+            <div class="meta">기준 충족 여부</div>
+          </div>
+
+          <div class="card amber decision" style="left: 60.5%; top: 17%; height: 11%;">
+            <div class="id">F</div>
+            <div class="title">단가 높음?</div>
+            <div class="meta">고단가 우선 처리</div>
+          </div>
+
+          <div class="card blue" style="left: 72%; top: 8%; height: 11%;">
+            <div class="id">G</div>
+            <div class="title">직접 처리</div>
+            <div class="meta">내가 우선</div>
+          </div>
+
+          <div class="card blue" style="left: 72%; top: 23%; height: 11%;">
+            <div class="id">H</div>
+            <div class="title">AI 1차</div>
+            <div class="meta">자동 보정 우선</div>
+          </div>
+
+          <div class="card blue" style="left: 83.5%; top: 8%; height: 11%;">
+            <div class="id">G1</div>
+            <div class="title">직접 보정</div>
+            <div class="meta">리스크 낮음<br />고단가</div>
+          </div>
+
+          <div class="card blue" style="left: 83.5%; top: 23%; height: 11%;">
+            <div class="id">H1</div>
+            <div class="title">AI 적용</div>
+            <div class="meta">Genspark 등<br />정형 프롬프트</div>
+          </div>
+
+          <div class="card amber decision" style="left: 83.5%; top: 38%; height: 11%;">
+            <div class="id">H2</div>
+            <div class="title">품질 통과?</div>
+            <div class="meta">AI 결과 체크</div>
+          </div>
+
+          <div class="card rose" style="left: 49%; top: 53%; height: 11%;">
+            <div class="id">J</div>
+            <div class="title">수작업 검토</div>
+            <div class="meta">예외/보수적 처리</div>
+          </div>
+
+          <div class="card rose" style="left: 60.5%; top: 53%; height: 11%;">
+            <div class="id">J1</div>
+            <div class="title">2차 보정</div>
+            <div class="meta">LR / PS / Handmade</div>
+          </div>
+
+          <div class="card violet" style="left: 72%; top: 53%; height: 11%;">
+            <div class="id">N</div>
+            <div class="title">1차 결과물</div>
+            <div class="meta">산출물 생성</div>
+          </div>
+
+          <div class="card violet" style="left: 83.5%; top: 53%; height: 11%;">
+            <div class="id">O</div>
+            <div class="title">전달</div>
+            <div class="meta">Slack thread 회신</div>
+          </div>
+
+          <div class="card violet" style="left: 83.5%; top: 68%; height: 11%;">
+            <div class="id">P</div>
+            <div class="title">피드백</div>
+            <div class="meta">수정 여부 수집</div>
+          </div>
+
+          <div class="card amber decision" style="left: 72%; top: 68%; height: 11%;">
+            <div class="id">Q</div>
+            <div class="title">수정 필요?</div>
+            <div class="meta">Yes / No</div>
+          </div>
+
+          <div class="card rose" style="left: 60.5%; top: 68%; height: 11%;">
+            <div class="id">R</div>
+            <div class="title">재작업</div>
+            <div class="meta">수정 반영</div>
+          </div>
+
+          <div class="card green" style="left: 49%; top: 82%; height: 11%;">
+            <div class="id">S</div>
+            <div class="title">완료 처리</div>
+            <div class="meta">종료 / 기록</div>
+          </div>
+
+          <div class="card green" style="left: 60.5%; top: 82%; height: 11%;">
+            <div class="id">T</div>
+            <div class="title">데이터셋 축적</div>
+            <div class="meta">원본 / 보정본 / 프롬프트 / 피드백</div>
+          </div>
+
+          <div class="card green" style="left: 72%; top: 82%; height: 11%;">
+            <div class="id">U</div>
+            <div class="title">자산화</div>
+            <div class="meta">Preset / Prompt / 머신 고도화</div>
+          </div>
+
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 z" fill="rgba(53,55,68,0.42)"></path>
+              </marker>
+            </defs>
+
+            <path class="flow" marker-end="url(#arrow)" d="M13 22.5 L14.5 22.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M24.5 22.5 L26 22.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M35.9 22.5 L37.5 22.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M47.4 22.5 L49 22.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M58.9 22.5 L60.5 22.5" />
+
+            <path class="flow" marker-end="url(#arrow)" d="M70.5 22.5 L72 13.5" />
+            <text class="arrow-label" x="70.5" y="15.5">예</text>
+
+            <path class="flow" marker-end="url(#arrow)" d="M70.5 22.5 L72 28.5" />
+            <text class="arrow-label" x="70.8" y="27.2">아니오</text>
+
+            <path class="flow" marker-end="url(#arrow)" d="M82 13.5 L83.5 13.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M82 28.5 L83.5 28.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M88.5 34 L88.5 38" />
+
+            <path class="flow soft" marker-end="url(#arrow)" d="M31 28 L31 53 L49 53" />
+            <text class="arrow-label" x="31.5" y="40">예</text>
+
+            <path class="flow soft" marker-end="url(#arrow)" d="M42.5 28 L42.5 53 L49 53" />
+            <text class="arrow-label" x="43" y="40">예</text>
+
+            <path class="flow soft" marker-end="url(#arrow)" d="M54 28 L54 53 L49 53" />
+            <text class="arrow-label" x="54.5" y="40">아니오</text>
+
+            <path class="flow soft" marker-end="url(#arrow)" d="M88.5 49 L88.5 53 L72 53" />
+            <text class="arrow-label" x="89" y="51">예</text>
+
+            <path class="flow soft" marker-end="url(#arrow)" d="M88.5 49 L88.5 58 L49 58" />
+            <text class="arrow-label" x="89" y="56.5">아니오</text>
+
+            <path class="flow" marker-end="url(#arrow)" d="M70.5 58.5 L72 58.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M82 58.5 L83.5 58.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M88.5 64 L88.5 68" />
+
+            <path class="flow" marker-end="url(#arrow)" d="M83.5 73.5 L82 73.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M70.5 73.5 L60.5 73.5" />
+            <text class="arrow-label" x="75.6" y="71">예</text>
+
+            <path class="flow" marker-end="url(#arrow)" d="M60.5 73.5 L60.5 58.5 L83.5 58.5" />
+
+            <path class="flow" marker-end="url(#arrow)" d="M72 73.5 L60.5 87.5" />
+            <text class="arrow-label" x="67.8" y="82">아니오</text>
+
+            <path class="flow" marker-end="url(#arrow)" d="M58.9 58.5 L60.5 58.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M47.4 58.5 L49 58.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M58.9 87.5 L60.5 87.5" />
+            <path class="flow" marker-end="url(#arrow)" d="M70.5 87.5 L72 87.5" />
+          </svg>
+
+          <div class="footer-note">한 화면 압축형 · 이름 칸 축소 버전</div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

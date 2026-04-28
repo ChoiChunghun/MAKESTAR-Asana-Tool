@@ -31,13 +31,14 @@ async function extractDocxTextInBrowser(file: File): Promise<string> {
     // 아직 스크립트 로드 전이면 잠시 대기 후 재시도
     await new Promise<void>((resolve, reject) => {
       let tries = 0;
+      const MAX_TRIES = 100; // 10초 (100ms * 100)
       const check = setInterval(() => {
         if ((window as unknown as { mammoth?: unknown }).mammoth) {
           clearInterval(check);
           resolve();
-        } else if (++tries > 30) {
+        } else if (++tries > MAX_TRIES) {
           clearInterval(check);
-          reject(new Error("mammoth 라이브러리 로드 실패"));
+          reject(new Error("문서 파싱 라이브러리 로드에 실패했습니다. 페이지를 새로 고침 후 다시 시도해주세요."));
         }
       }, 100);
     });
@@ -93,7 +94,9 @@ export default function HomePage() {
     const saved = localStorage.getItem(TOKEN_KEY);
     if (saved) setToken(saved);
     const hist = localStorage.getItem(HISTORY_KEY);
-    if (hist) setHistory(JSON.parse(hist));
+    if (hist) {
+      try { setHistory(JSON.parse(hist)); } catch { localStorage.removeItem(HISTORY_KEY); }
+    }
   }, []);
 
   useEffect(() => {
@@ -329,7 +332,9 @@ export default function HomePage() {
     setDerivativeInfo(null);
   }
 
-  const canCreate = token && projectGid && plan && rows.some((r) => r.enabled && r.available);
+  // 기본값("추후 일괄 변경") 상태에서는 생성 불가
+  const hasDefaultCode = rows.some((r) => r.title?.includes("추후 일괄 변경"));
+  const canCreate = token && projectGid && plan && !hasDefaultCode && rows.some((r) => r.enabled && r.available);
 
   return (
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
@@ -462,6 +467,11 @@ export default function HomePage() {
                   <p className="ms-hint">
                     입력 후 &quot;일괄 적용&quot;을 누르면 모든 태스크명과 섹션명에 반영됩니다.
                   </p>
+                  {hasDefaultCode && (
+                    <p className="text-yellow-400 text-xs mt-1">
+                      ⚠ 상품코드를 입력하고 &quot;일괄 적용&quot;을 눌러야 생성할 수 있습니다.
+                    </p>
+                  )}
                 </div>
 
                 <ParseSummary summary={plan.summary} />

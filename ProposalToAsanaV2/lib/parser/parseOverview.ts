@@ -312,7 +312,9 @@ function collectAllVenueValues(lines: string[], startIdx: number, labelKeys: str
     if (/^\{.*\}$/.test(v)) continue;
     parts.push(v);
   }
-  return parts.join(" / ");
+  const result = parts.join(" / ");
+  // 비정형 문서에서 의도치 않게 긴 값이 수집되는 것을 방지
+  return result.slice(0, 500);
 }
 
 function findNextNonEmptyValue(lines: string[], startIdx: number, labelKeys: string[]): string {

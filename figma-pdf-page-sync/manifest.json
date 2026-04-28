@@ -1,0 +1,20 @@
+{
+  "name": "PDF Page Sync",
+  "id": "1500000000000000000",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://localhost:9910"]
+  },
+  "relaunchButtons": [
+    {
+      "command": "open",
+      "name": "Open PDF Sync",
+      "multipleSelection": true
+    }
+  ]
+}

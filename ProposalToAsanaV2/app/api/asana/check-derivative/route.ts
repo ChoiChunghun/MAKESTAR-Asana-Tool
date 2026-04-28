@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, validateToken } from "@/lib/asana/client";
 import { findSectionByProductCode } from "@/lib/asana/sections";
+import { isValidGid } from "@/lib/parser/utils";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,14 @@ export async function GET(req: NextRequest) {
     const productCode = req.nextUrl.searchParams.get("productCode") || "";
 
     if (!token || !projectGid || !productCode) {
+      return NextResponse.json({ isDerivative: false, suffix: "", sectionGid: null, sectionName: null });
+    }
+    // GID 포맷 검증 (숫자 10자리 이상)
+    if (!isValidGid(projectGid)) {
+      return NextResponse.json({ isDerivative: false, suffix: "", sectionGid: null, sectionName: null });
+    }
+    // 상품코드 길이 제한
+    if (productCode.trim().length > 100) {
       return NextResponse.json({ isDerivative: false, suffix: "", sectionGid: null, sectionName: null });
     }
 

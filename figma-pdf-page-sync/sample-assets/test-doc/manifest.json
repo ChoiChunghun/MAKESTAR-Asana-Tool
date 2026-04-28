@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "sourcePdfId": "test-doc",
+  "version": "sample-v1",
+  "pageCount": 1,
+  "pages": {
+    "1": "http://localhost:9910/sample-assets/test-doc/page-0001.png"
+  }
+}

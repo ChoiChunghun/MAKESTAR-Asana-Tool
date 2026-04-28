@@ -45,7 +45,10 @@ export async function findSectionByProductCode(
     `/projects/${projectGid}/sections?opt_fields=gid,name`,
     token
   );
-  return (sections || []).find((s) => s.name.includes(code)) ?? null;
+  // 단순 substring 오탐 방지: 앞뒤가 영숫자가 아닌 경계에서만 매칭
+  const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const boundary = new RegExp(`(?<![\\w가-힣])${escaped}(?![\\w가-힣])`);
+  return (sections || []).find((s) => boundary.test(s.name)) ?? null;
 }
 
 /** 섹션의 첫 번째 태스크 GID를 반환 (없으면 null) */

@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asana 자동화 규칙 관리자</title>
+  <style>
+:root {
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --line: #dbe4f0;
+  --text: #17212f;
+  --muted: #66758a;
+  --blue: #2f6df6;
+  --blue-soft: #eaf1ff;
+  --green: #1f9d62;
+  --orange: #f59e0b;
+  --danger: #df4d64;
+  --shadow: 0 12px 30px rgba(31, 48, 86, 0.08);
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: Inter, Pretendard, Apple SD Gothic Neo, sans-serif; background: var(--bg); color: var(--text); }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+.app-shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.sidebar { background: #f9fbff; border-right: 1px solid var(--line); padding: 22px 18px; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.brand-badge { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #2f6df6, #6ba8ff); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.brand h1 { margin: 0; font-size: 18px; }
+.brand p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.nav { display: flex; flex-direction: column; gap: 8px; }
+.nav button { width: 100%; text-align: left; border: 1px solid var(--line); background: #fff; padding: 12px 14px; border-radius: 12px; color: var(--text); }
+.nav button.active { background: var(--blue-soft); border-color: #b9ccff; color: var(--blue); font-weight: 700; }
+.sidebar-footer { display: grid; gap: 10px; }
+.save-state { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--muted); font-size: 13px; }
+.main { padding: 26px; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.topbar h2 { margin: 0; font-size: 28px; }
+.topbar p { margin: 8px 0 0; color: var(--muted); }
+.topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.content { display: grid; gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px 0; }
+.card-head h3 { margin: 0; font-size: 18px; }
+.card-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.card-body { padding: 18px 20px 20px; }
+.help-badge { background: var(--blue-soft); color: var(--blue); font-size: 12px; padding: 6px 10px; border-radius: 999px; }
+.grid { display: grid; gap: 14px; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 11px 12px; min-height: 44px; }
+.field textarea { min-height: 110px; resize: vertical; }
+.field small { color: var(--muted); }
+.array-editor { display: grid; gap: 10px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
+.tag button { border: 0; background: transparent; color: var(--danger); padding: 0; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button.primary, button.ghost, button.danger, .btn-inline { border-radius: 12px; padding: 11px 14px; border: 1px solid var(--line); }
+button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+button.ghost { background: #fff; color: var(--text); }
+button.danger { background: #fff2f4; color: var(--danger); border-color: #ffc7d0; }
+.btn-inline { background: #fff; }
+.kpi-wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.kpi { background: linear-gradient(180deg, #ffffff, #f7faff); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.kpi h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.kpi strong { font-size: 26px; }
+.preview-box, .code-box { background: #0f172a; color: #e5eefc; border-radius: 14px; padding: 14px; white-space: pre-wrap; overflow: auto; }
+.result-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: left; font-size: 14px; vertical-align: top; }
+.table th { color: var(--muted); font-weight: 700; }
+.inline-help { font-size: 12px; color: var(--muted); }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.badge { font-size: 12px; padding: 5px 9px; border-radius: 999px; background: #eef5ff; color: var(--blue); }
+.mapping-list { display: grid; gap: 10px; }
+.mapping-item { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: #fff; }
+hr.soft { border: 0; border-top: 1px dashed var(--line); margin: 4px 0; }
+@media (max-width: 1100px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+  .kpi-wrap, .grid.two, .grid.three, .result-grid { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <div class="brand">
+          <div class="brand-badge">A</div>
+          <div>
+            <h1>Asana 자동화 규칙 관리자</h1>
+            <p>포토카드 · 특전 · 업데이트 · 오픈 규칙 관리</p>
+          </div>
+        </div>
+
+        <nav class="nav" id="navTabs"></nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="save-state" id="saveState">저장되지 않은 변경사항 없음</div>
+        <button class="primary" id="saveAllBtn">전체 저장</button>
+        <button class="ghost" id="resetBtn">기본값 복원</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">대시보드</h2>
+          <p id="pageDesc">규칙을 수정하고 테스트한 뒤 JSON 또는 Apps Script 스니펫으로 내보낼 수 있습니다.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost" id="copyJsonBtn">JSON 복사</button>
+          <button class="primary" id="copySnippetBtn">Apps Script 스니펫 복사</button>
+        </div>
+      </header>
+
+      <section class="content" id="viewRoot"></section>
+    </main>
+  </div>
+
+  <template id="cardTemplate">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h3></h3>
+          <p></p>
+        </div>
+        <span class="help-badge">도움말</span>
+      </div>
+      <div class="card-body"></div>
+    </section>
+  </template>
+
+  <script>
+const STORAGE_KEY = 'asana-rule-manager-config-v1';
+
+const DEFAULT_CONFIG = {
+  photocard: {
+    sectionTrigger: '메이크스타 특전',
+    includeKeywords: ['포토카드'],
+    requiredConditions: ['포토카드 포함', '수량 패턴 필요 (숫자 + 매/종)', '메이크스타 특전 섹션 이후만 검사'],
+    excludeKeywords: ['참석권', '관람권', '앨범', '이벤트', '키링', '폴라로이드', '포스트잇'],
+    nameCleanupRules: ['번호 접두어 제거', '수량 뒤 문구 제거', '괄호 제거', '하이픈 뒤 문구 제거'],
+    minNameLength: 3,
+    dedupeMode: 'dedupe'
+  },
+  benefit: {
+    sectionTrigger: '메이크스타 특전',
+    keywords: ['키링', '뱃지', '카드', '엽서', 'L홀더', '우표', '인화 2컷', '인화 4컷', '증명사진', '탑로더', '볼펜', '골 트래커', '골트래커', '메시지 카드', '스티커', '메모지', '시험지'],
+    requiredConditions: ['특전 키워드 포함', '수량 패턴 필요 (숫자 + 매/종/개)', '포토카드 문구 제외'],
+    excludePatterns: ['한 주문 건에서.*구매 시', '중복 없이.*세트 증정', '추가 증정'],
+    extractionHint: '실제 특전명 + 수량을 추출. 예: 키링 1종 → { name: 키링, count: 1 }',
+    exceptionLogic: '조건 문장이라도 실제 특전명 + 수량이 뚜렷하면 포함',
+    dedupeMode: 'sum'
+  },
+  update: {
+    titleTemplate: '[{productCode}] 업데이트 / {outputCount}종',
+    outputCountMode: 'photocard_plus_benefit',
+    includeDataSection: true,
+    includeQuestionSection: true,
+    includeRequestSection: true,
+    includeOutputSection: true,
+    bodyTemplate: '자료 / 문의 / 공유, 요청 / 필요한 산출물 구조 유지',
+    outputLabelMode: 'plain'
+  },
+  open: {
+    taskName: '[{productCode}] 오픈',
+    subtaskName: '[{productCode}] 오픈 디자인',
+    compositeRule: 'blueBoxCount === 1 ? O : X',
+    storyRule: '스토리 {blueBoxCount}종',
+    includePackshotIfMissingProduct: true,
+    fixedOutputs: ['메인 배너 (PC)', '메인 배너 (모바일)', '서브 배너'],
+    planningSectionLabel: '기획서',
+    dataSectionLabel: '자료',
+    questionSectionLabel: '문의',
+    requestSectionLabel: '공유, 요청',
+    outputSectionLabel: '필요한 산출물',
+    noteTop: '*불필요한 내용은 삭제하셔도 좋습니다!'
+  },
+  eventMappings: [
+    { name: '특전', keywords: ['증정', '포토카드', '스페셜 기프트', 'Special Gift'], priority: 1 },
+    { name: '쇼케이스 초대', keywords: ['초대'], priority: 2 },
+    { name: '영통 1', keywords: ['영상통화', 'Video Call'], priority: 3 },
+    { name: '영통 2', keywords: ['영상통화', 'Video Call'], priority: 4 },
+    { name: '대면', keywords: ['팬사인회', '팬미팅'], priority: 5 },
+    { name: '포토', keywords: ['포토회', '1:1 포토회'], priority: 6 },
+    { name: '오프라인 이벤트', keywords: ['베이커리', '게임회'], priority: 7 },
+    { name: '오프라인 럭키드로우', keywords: ['오프라인 럭키드로우'], priority: 8 },
+    { name: '펀딩', keywords: ['펀딩'], priority: 9 },
+    { name: '기타', keywords: ['확인되지 않음'], priority: 99 }
+  ],
+  openRules: {
+    snsBaseItems: ['메인'],
+    snsPromoItems: ['홍보이벤트 / 국', '홍보이벤트 / 영'],
+    snsScheduleItem: '이벤트 일정 안내',
+    snsSingleBenefitItem: '특전',
+    snsCombinedItems: ['특전 / 이벤트 A', '특전 / 이벤트 B'],
+    scheduleKeywords: ['팬사인회', '팬미팅', '쇼케이스', '대면'],
+    promoTriggerKeywords: ['홍보 이벤트'],
+    combinedEventSeparator: '&'
+  }
+};
+
+const TABS = [
+  { id: 'dashboard', label: '대시보드', desc: '전체 규칙 현황 요약' },
+  { id: 'photocard', label: '포토카드 규칙', desc: '포토카드 추출용 포함/필수/제외 조건 관리' },
+  { id: 'benefit', label: '특전 규칙', desc: '특전 추출 규칙과 제외 패턴 관리' },
+  { id: 'update', label: '업데이트 규칙', desc: '업데이트 제목과 본문 생성 규칙 관리' },
+  { id: 'open', label: '오픈 규칙', desc: '오픈 디자인 본문 및 산출물 규칙 관리' },
+  { id: 'mapping', label: '이벤트 구분 매핑', desc: '이벤트 키워드와 분류 우선순위 관리' },
+  { id: 'simulator', label: '테스트 / 시뮬레이터', desc: '샘플 문장을 넣어 즉시 분류 결과 확인' },
+  { id: 'export', label: '내보내기 / 가져오기', desc: 'JSON 및 Apps Script 설정 코드 생성' }
+];
+
+let state = loadConfig();
+let activeTab = 'dashboard';
+let dirty = false;
+
+const navTabs = document.getElementById('navTabs');
+const viewRoot = document.getElementById('viewRoot');
+const pageTitle = document.getElementById('pageTitle');
+const pageDesc = document.getElementById('pageDesc');
+const saveState = document.getElementById('saveState');
+
+document.getElementById('saveAllBtn').addEventListener('click', saveConfig);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('모든 설정을 기본값으로 되돌릴까요?')) return;
+  state = deepClone(DEFAULT_CONFIG);
+  markDirty(true);
+  render();
+});
+document.getElementById('copyJsonBtn').addEventListener('click', async () => {
+  await copyText(JSON.stringify(state, null, 2));
+  alert('JSON을 복사했습니다.');
+});
+document.getElementById('copySnippetBtn').addEventListener('click', async () => {
+  await copyText(buildAppsScriptSnippet(state));
+  alert('Apps Script 스니펫을 복사했습니다.');
+});
+
+renderNav();
+render();
+
+function renderNav() {
+  navTabs.innerHTML = '';
+  TABS.forEach(tab => {
+    const btn = document.createElement('button');
+    btn.textContent = tab.label;
+    btn.className = activeTab === tab.id ? 'active' : '';
+    btn.addEventListener('click', () => {
+      activeTab = tab.id;
+      render();
+      renderNav();
+    });
+    navTabs.appendChild(btn);
+  });
+}
+
+function render() {
+  const tab = TABS.find(t => t.id === activeTab);
+  pageTitle.textContent = tab.label;
+  pageDesc.textContent = tab.desc;
+  viewRoot.innerHTML = '';
+  updateSaveState();
+
+  if (activeTab === 'dashboard') return renderDashboard();
+  if (activeTab === 'photocard') return renderPhotocardTab();
+  if (activeTab === 'benefit') return renderBenefitTab();
+  if (activeTab === 'update') return renderUpdateTab();
+  if (activeTab === 'open') return renderOpenTab();
+  if (activeTab === 'mapping') return renderMappingTab();
+  if (activeTab === 'simulator') return renderSimulatorTab();
+  if (activeTab === 'export') return renderExportTab();
+}
+
+function renderDashboard() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'grid';
+
+  const kpis = document.createElement('div');
+  kpis.className = 'kpi-wrap';
+  kpis.innerHTML = `
+    <div class="kpi"><h4>포토카드 제외 키워드</h4><strong>${state.photocard.excludeKeywords.length}</strong></div>
+    <div class="kpi"><h4>특전 키워드</h4><strong>${state.benefit.keywords.length}</strong></div>
+    <div class="kpi"><h4>이벤트 매핑 규칙</h4><strong>${state.eventMappings.length}</strong></div>
+    <div class="kpi"><h4>오픈 SNS 기본 규칙</h4><strong>${state.openRules.snsBaseItems.length + state.openRules.snsPromoItems.length + state.openRules.snsCombinedItems.length}</strong></div>
+  `;
+  wrapper.appendChild(kpis);
+
+  wrapper.appendChild(createCard('현재 관리 가능한 항목', '어떤 것을 바꿀 수 있는지 빠르게 확인할 수 있습니다.', `
+    <table class="table">
+      <thead><tr><th>영역</th><th>관리 항목</th></tr></thead>
+      <tbody>
+        <tr><td>포토카드</td><td>포함 키워드, 필수 조건, 제외 키워드, 이름 정제, 중복 처리</td></tr>
+        <tr><td>특전</td><td>특전 키워드, 제외 패턴, 예외 규칙, 중복 처리</td></tr>
+        <tr><td>업데이트</td><td>제목 템플릿, 종수 계산 방식, 본문 구성 ON/OFF</td></tr>
+        <tr><td>오픈</td><td>기획서/문의/산출물 템플릿, 스토리/팩샷/SNS 규칙</td></tr>
+        <tr><td>이벤트 구분</td><td>키워드 매핑, 우선순위, 결합 이벤트 처리</td></tr>
+      </tbody>
+    </table>
+  `));
+
+  wrapper.appendChild(createCard('권장 사용 흐름', '운영 시에는 이 순서대로 쓰면 편합니다.', `
+    <div class="preview-box">1. 규칙 탭에서 포함/제외 조건 수정
+2. 테스트/시뮬레이터에서 샘플 문장 검증
+3. 전체 저장으로 로컬 저장
+4. 내보내기 탭에서 JSON 또는 Apps Script 스니펫 생성
+5. 실제 Apps Script에 반영</div>
+  `));
+
+  viewRoot.appendChild(wrapper);
+}
+
+function renderPhotocardTab() {
+  const grid = sectionGrid();
+  grid.appendChild(createArrayEditorCard('포함 키워드', '포토카드로 보기 위한 핵심 키워드입니다.', state.photocard.includeKeywords, v => state.photocard.includeKeywords = v));
+  grid.appendChild(createArrayEditorCard('필수 조건', '포토카드로 인정되기 위해 반드시 만족해야 하는 조건입니다.', state.photocard.requiredConditions, v => state.photocard.requiredConditions = v));
+  grid.appendChild(createArrayEditorCard('제외 키워드', '포토카드처럼 보여도 제외할 키워드입니다.', state.photocard.excludeKeywords, v => state.photocard.excludeKeywords = v));
+  grid.appendChild(createArrayEditorCard('이름 정제 규칙', '이름을 어떻게 깔끔하게 잘라낼지 설명용으로 관리합니다.', state.photocard.nameCleanupRules, v => state.photocard.nameCleanupRules = v));
+
+  const options = createCardElement('세부 설정', '최소 길이와 중복 처리 방식을 설정합니다.');
+  options.querySelector('.card-body').appendChild(buildFields([
+    numberField('이름 최소 길이', state.photocard.minNameLength, value => state.photocard.minNameLength = Number(value || 0)),
+    selectField('중복 처리 방식', state.photocard.dedupeMode, [
+      ['dedupe', '중복 제거'],
+      ['sum', '수량 합산']
+    ], value => state.photocard.dedupeMode = value),
+    textField('섹션 시작 문구', state.photocard.sectionTrigger, value => state.photocard.sectionTrigger = value)
+  ], 3));
+  grid.appendChild(options);
+
+  const testCard = createCardElement('간단 테스트', '한 줄 문장을 넣어 포토카드로 잡히는지 확인합니다.');
+  const body = testCard.querySelector('.card-body');
+  const textarea = document.createElement('textarea');
+  textarea.placeholder = '예: 1. 셀카 포토카드 2종';
+  textarea.value = '1. 셀카 포토카드 2종';
+  const button = document.createElement('button');
+  button.className = 'primary';
+  button.textContent = '테스트 실행';
+  const result = document.createElement('div');
+  result.className = 'preview-box';
+  button.addEventListener('click', () => {
+    const parsed = simulatePhotocardLines(textarea.value.split(/\n+/));
+    result.textContent = JSON.stringify(parsed, null, 2);
+  });
+  body.append(textarea, button, result);
+  grid.appendChild(testCard);
+
+  viewRoot.appendChild(grid);
+}
+
+function renderBenefitTab() {
+  const grid = sectionGrid();
+  grid.appendChild(createArrayEditorCard('특전 판단 키워드', '특전 후보로 삼을 키워드 목록입니다.', state.benefit.keywords, v => state.benefit.keywords = v));
+  grid.appendChild(createArrayEditorCard('필수 조건', '특전으로 인정되기 위한 기준입니다.', state.benefit.requiredConditions, v => state.benefit.requiredConditions = v));
+  grid.appendChild(createArrayEditorCard('제외 패턴', '문자열 또는 정규식 패턴을 텍스트로 관리합니다.', state.benefit.excludePatterns, v => state.benefit.excludePatterns = v));
+
+  const detail = createCardElement('세부 규칙', '실제 특전명 추출과 예외 처리 규칙을 설명/관리합니다.');
+  detail.querySelector('.card-body').appendChild(buildFields([
+    textAreaField('특전명 추출 규칙 설명', state.benefit.extractionHint, value => state.benefit.extractionHint = value),
+    textAreaField('조건 문장 예외 처리', state.benefit.exceptionLogic, value => state.benefit.exceptionLogic = value),
+    selectField('중복 처리 방식', state.benefit.dedupeMode, [['dedupe','중복 제거'], ['sum','수량 합산']], value => state.benefit.dedupeMode = value)
+  ], 1));
+  grid.appendChild(detail);
+
+  const testCard = createCardElement('간단 테스트', '특전 문장을 넣어 추출 결과를 확인합니다.');
+  const body = testCard.querySelector('.card-body');
+  const textarea = document.createElement('textarea');
+  textarea.value = '한 주문 건에서 앨범 1매 이상 구매 시 키링 1종 증정';
+  const button = document.createElement('button');
+  button.className = 'primary';
+  button.textContent = '테스트 실행';
+  const result = document.createElement('div');
+  result.className = 'preview-box';
+  button.addEventListener('click', () => {
+    const parsed = simulateBenefitLines(textarea.value.split(/\n+/));
+    result.textContent = JSON.stringify(parsed, null, 2);
+  });
+  body.append(textarea, button, result);
+  grid.appendChild(testCard);
+
+  viewRoot.appendChild(grid);
+}
+
+function renderUpdateTab() {
+  const grid = sectionGrid();
+  const main = createCardElement('업데이트 제목/본문 규칙', '업데이트 태스크 이름과 본문 구성을 바꿀 수 있습니다.');
+  main.querySelector('.card-body').appendChild(buildFields([
+    textField('제목 템플릿', state.update.titleTemplate, value => state.update.titleTemplate = value),
+    selectField('종수 계산 방식', state.update.outputCountMode, [
+      ['photocard_only', '포토카드만'],
+      ['photocard_plus_benefit', '포토카드 + 특전']
+    ], value => state.update.outputCountMode = value),
+    textAreaField('본문 템플릿 메모', state.update.bodyTemplate, value => state.update.bodyTemplate = value),
+    selectField('산출물 표시 방식', state.update.outputLabelMode, [['plain', '실 내용만'], ['labeled', '라벨 포함']], value => state.update.outputLabelMode = value)
+  ], 2));
+  grid.appendChild(main);
+
+  const toggles = createCardElement('본문 섹션 사용 여부', '필요 없는 섹션은 끌 수 있습니다.');
+  const toggleBody = toggles.querySelector('.card-body');
+  [
+    ['자료 섹션', 'includeDataSection'],
+    ['문의 섹션', 'includeQuestionSection'],
+    ['공유, 요청 섹션', 'includeRequestSection'],
+    ['필요한 산출물 섹션', 'includeOutputSection']
+  ].forEach(([label, key]) => toggleBody.appendChild(toggleField(label, state.update[key], value => state.update[key] = value)));
+  grid.appendChild(toggles);
+
+  const preview = createCardElement('제목 미리보기', '상품코드/포토카드/특전 개수 가정값으로 결과를 보여줍니다.');
+  const wrap = document.createElement('div');
+  wrap.className = 'grid two';
+  const input1 = numberField('포토카드 개수', 2, () => {});
+  const input2 = numberField('특전 개수', 1, () => {});
+  const input3 = textField('상품코드', 'P_12345', () => {});
+  wrap.append(input1, input2, input3);
+  const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = '미리보기 생성';
+  const out = document.createElement('div'); out.className = 'preview-box';
+  btn.addEventListener('click', () => {
+    const productCode = input3.querySelector('input').value || 'P_12345';
+    const pc = Number(input1.querySelector('input').value || 0);
+    const sp = Number(input2.querySelector('input').value || 0);
+    const count = state.update.outputCountMode === 'photocard_only' ? pc : pc + sp;
+    out.textContent = state.update.titleTemplate
+      .replace('{productCode}', productCode)
+      .replace('{outputCount}', String(count));
+  });
+  preview.querySelector('.card-body').append(wrap, btn, out);
+  grid.appendChild(preview);
+
+  viewRoot.appendChild(grid);
+}
+
+function renderOpenTab() {
+  const grid = sectionGrid();
+  grid.appendChild(createArrayEditorCard('고정 산출물', '오픈 디자인에 기본 포함되는 항목입니다.', state.open.fixedOutputs, v => state.open.fixedOutputs = v));
+
+  const names = createCardElement('오픈 태스크 이름/템플릿', '상위/하위 태스크 이름과 본문 라벨을 설정합니다.');
+  names.querySelector('.card-body').appendChild(buildFields([
+    textField('상위 태스크명', state.open.taskName, value => state.open.taskName = value),
+    textField('하위 태스크명', state.open.subtaskName, value => state.open.subtaskName = value),
+    textField('상단 안내 문구', state.open.noteTop, value => state.open.noteTop = value),
+    textField('기획서 라벨', state.open.planningSectionLabel, value => state.open.planningSectionLabel = value),
+    textField('자료 라벨', state.open.dataSectionLabel, value => state.open.dataSectionLabel = value),
+    textField('문의 라벨', state.open.questionSectionLabel, value => state.open.questionSectionLabel = value),
+    textField('공유, 요청 라벨', state.open.requestSectionLabel, value => state.open.requestSectionLabel = value),
+    textField('산출물 라벨', state.open.outputSectionLabel, value => state.open.outputSectionLabel = value)
+  ], 2));
+  grid.appendChild(names);
+
+  const rules = createCardElement('핵심 계산 규칙', '파란 박스 수, 팩샷 조건, 스토리 규칙 등을 관리합니다.');
+  rules.querySelector('.card-body').appendChild(buildFields([
+    textField('통이미지 판단식', state.open.compositeRule, value => state.open.compositeRule = value),
+    textField('스토리 규칙', state.open.storyRule, value => state.open.storyRule = value),
+    selectField('상품코드가 기존 Asana에 없을 때 팩샷 추가', String(state.open.includePackshotIfMissingProduct), [['true', '예'], ['false', '아니오']], value => state.open.includePackshotIfMissingProduct = value === 'true')
+  ], 3));
+  grid.appendChild(rules);
+
+  const sns = createCardElement('SNS 산출물 규칙', 'SNS 하위 산출물의 기본/조건부 항목을 관리합니다.');
+  const snsBody = sns.querySelector('.card-body');
+  snsBody.appendChild(buildFields([
+    textField('이벤트 일정 안내 항목명', state.openRules.snsScheduleItem, value => state.openRules.snsScheduleItem = value),
+    textField('단일 이벤트 특전 항목명', state.openRules.snsSingleBenefitItem, value => state.openRules.snsSingleBenefitItem = value),
+    textField('결합 이벤트 구분자', state.openRules.combinedEventSeparator, value => state.openRules.combinedEventSeparator = value)
+  ], 3));
+  snsBody.appendChild(createArrayEditorInline('SNS 기본 항목', state.openRules.snsBaseItems, v => state.openRules.snsBaseItems = v));
+  snsBody.appendChild(createArrayEditorInline('홍보 이벤트 항목', state.openRules.snsPromoItems, v => state.openRules.snsPromoItems = v));
+  snsBody.appendChild(createArrayEditorInline('결합형 이벤트 항목', state.openRules.snsCombinedItems, v => state.openRules.snsCombinedItems = v));
+  snsBody.appendChild(createArrayEditorInline('일정 안내 트리거 키워드', state.openRules.scheduleKeywords, v => state.openRules.scheduleKeywords = v));
+  snsBody.appendChild(createArrayEditorInline('홍보 이벤트 트리거 키워드', state.openRules.promoTriggerKeywords, v => state.openRules.promoTriggerKeywords = v));
+  grid.appendChild(sns);
+
+  viewRoot.appendChild(grid);
+}
+
+function renderMappingTab() {
+  const grid = sectionGrid();
+  const card = createCardElement('이벤트 구분 매핑', '키워드와 우선순위를 수정할 수 있습니다.');
+  const body = card.querySelector('.card-body');
+  const list = document.createElement('div');
+  list.className = 'mapping-list';
+
+  state.eventMappings
+    .sort((a, b) => a.priority - b.priority)
+    .forEach((item, index) => {
+      const box = document.createElement('div');
+      box.className = 'mapping-item';
+      box.innerHTML = `
+        <div class="grid three">
+          <div class="field"><label>분류명</label><input value="${escapeHtml(item.name)}" data-kind="name" /></div>
+          <div class="field"><label>우선순위</label><input type="number" value="${item.priority}" data-kind="priority" /></div>
+          <div class="field"><label>키워드 (쉼표 구분)</label><input value="${escapeHtml(item.keywords.join(', '))}" data-kind="keywords" /></div>
+        </div>
+      `;
+      box.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+          const kind = input.dataset.kind;
+          if (kind === 'name') item.name = input.value;
+          if (kind === 'priority') item.priority = Number(input.value || 0);
+          if (kind === 'keywords') item.keywords = input.value.split(',').map(v => v.trim()).filter(Boolean);
+          markDirty(true);
+        });
+      });
+      const row = document.createElement('div');
+      row.className = 'row';
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '삭제';
+      del.addEventListener('click', () => {
+        state.eventMappings.splice(index, 1);
+        markDirty(true);
+        render();
+      });
+      row.appendChild(del);
+      box.appendChild(row);
+      list.appendChild(box);
+    });
+
+  const add = document.createElement('button');
+  add.className = 'primary';
+  add.textContent = '매핑 추가';
+  add.addEventListener('click', () => {
+    state.eventMappings.push({ name: '새 분류', keywords: [], priority: state.eventMappings.length + 1 });
+    markDirty(true);
+    render();
+  });
+
+  body.append(list, add);
+  grid.appendChild(card);
+  viewRoot.appendChild(grid);
+}
+
+function renderSimulatorTab() {
+  const grid = sectionGrid();
+  const simulator = createCardElement('샘플 테스트', '시트에서 복붙한 문장을 넣으면 포토카드/특전/이벤트/오픈 규칙을 한 번에 확인합니다.');
+  const body = simulator.querySelector('.card-body');
+  const fields = document.createElement('div');
+  fields.className = 'grid three';
+  const productField = textField('상품코드', 'P_12345', () => {});
+  const blueField = numberField('파란 박스 개수', 1, () => {});
+  const existingField = selectField('기존 Asana에 상품코드 존재 여부', 'false', [['false', '없음'], ['true', '있음']], () => {});
+  fields.append(productField, blueField, existingField);
+
+  const text = document.createElement('textarea');
+  text.value = '메이크스타 특전\n1. 셀카 포토카드 2종\n한 주문 건에서 앨범 1매 이상 구매 시 키링 1종 증정\n팬사인회\n홍보 이벤트';
+  text.className = 'sim-text';
+
+  const btn = document.createElement('button');
+  btn.className = 'primary';
+  btn.textContent = '전체 시뮬레이션 실행';
+
+  const resultWrap = document.createElement('div');
+  resultWrap.className = 'result-grid';
+
+  btn.addEventListener('click', () => {
+    const sample = text.value;
+    const lines = sample.split(/\n+/).map(v => v.trim()).filter(Boolean);
+    const productCode = productField.querySelector('input').value || 'P_12345';
+    const blueBoxCount = Number(blueField.querySelector('input').value || 1);
+    const exists = existingField.querySelector('select').value === 'true';
+    const photocardItems = simulatePhotocardLines(lines);
+    const benefitItems = simulateBenefitLines(lines);
+    const eventLabels = detectEventsFromText(sample);
+    const outputCount = state.update.outputCountMode === 'photocard_only' ? photocardItems.length : photocardItems.length + benefitItems.length;
+    const openContext = buildOpenContextFromSample(sample, productCode, blueBoxCount, exists, eventLabels);
+
+    resultWrap.innerHTML = '';
+    resultWrap.append(
+      resultCard('포토카드 추출 결과', JSON.stringify(photocardItems, null, 2)),
+      resultCard('특전 추출 결과', JSON.stringify(benefitItems, null, 2)),
+      resultCard('이벤트 구분 결과', eventLabels.join(', ')),
+      resultCard('업데이트 제목 결과', state.update.titleTemplate.replace('{productCode}', productCode).replace('{outputCount}', String(outputCount))),
+      resultCard('오픈 산출물 결과', JSON.stringify(openContext.outputs, null, 2)),
+      resultCard('오픈 디자인 본문 미리보기', buildOpenPreviewText(openContext))
+    );
+  });
+
+  body.append(fields, text, btn, resultWrap);
+  grid.appendChild(simulator);
+  viewRoot.appendChild(grid);
+}
+
+function renderExportTab() {
+  const grid = sectionGrid();
+  const exportCard = createCardElement('내보내기', '현재 설정을 JSON 또는 Apps Script 설정 스니펫으로 내보낼 수 있습니다.');
+  const body = exportCard.querySelector('.card-body');
+  const jsonBox = document.createElement('div');
+  jsonBox.className = 'code-box';
+  jsonBox.textContent = JSON.stringify(state, null, 2);
+  const snippetBox = document.createElement('div');
+  snippetBox.className = 'code-box';
+  snippetBox.textContent = buildAppsScriptSnippet(state);
+  const row = document.createElement('div'); row.className = 'row';
+  const copyJson = document.createElement('button'); copyJson.className = 'ghost'; copyJson.textContent = 'JSON 복사';
+  const copySnippet = document.createElement('button'); copySnippet.className = 'primary'; copySnippet.textContent = 'Apps Script 스니펫 복사';
+  copyJson.addEventListener('click', async () => { await copyText(jsonBox.textContent); alert('JSON 복사 완료'); });
+  copySnippet.addEventListener('click', async () => { await copyText(snippetBox.textContent); alert('스니펫 복사 완료'); });
+  row.append(copyJson, copySnippet);
+
+  const importArea = document.createElement('textarea');
+  importArea.placeholder = '여기에 JSON을 붙여넣고 가져오기를 누르세요.';
+  const importBtn = document.createElement('button'); importBtn.className = 'ghost'; importBtn.textContent = 'JSON 가져오기';
+  importBtn.addEventListener('click', () => {
+    try {
+      const parsed = JSON.parse(importArea.value);
+      state = parsed;
+      markDirty(true);
+      render();
+      alert('가져오기가 완료되었습니다. 저장 버튼을 눌러 로컬에 반영하세요.');
+    } catch (e) {
+      alert('JSON 형식이 올바르지 않습니다.');
+    }
+  });
+
+  body.append(row, createLabel('전체 JSON'), jsonBox, createLabel('Apps Script 스니펫'), snippetBox, createLabel('가져오기'), importArea, importBtn);
+  grid.appendChild(exportCard);
+  viewRoot.appendChild(grid);
+}
+
+function buildFields(fieldNodes, columns = 2) {
+  const grid = document.createElement('div');
+  grid.className = `grid ${columns === 3 ? 'three' : columns === 2 ? 'two' : ''}`;
+  fieldNodes.forEach(node => grid.appendChild(node));
+  return grid;
+}
+
+function textField(label, value, onChange) {
+  const field = document.createElement('div');
+  field.className = 'field';
+  field.innerHTML = `<label>${label}</label><input value="${escapeHtml(String(value ?? ''))}" />`;
+  field.querySelector('input').addEventListener('input', e => { onChange(e.target.value); markDirty(true); });
+  return field;
+}
+
+function numberField(label, value, onChange) {
+  const field = document.createElement('div');
+  field.className = 'field';
+  field.innerHTML = `<label>${label}</label><input type="number" value="${Number(value ?? 0)}" />`;
+  field.querySelector('input').addEventListener('input', e => { onChange(e.target.value); markDirty(true); });
+  return field;
+}
+
+function textAreaField(label, value, onChange) {
+  const field = document.createElement('div');
+  field.className = 'field';
+  const lab = document.createElement('label'); lab.textContent = label;
+  const ta = document.createElement('textarea'); ta.value = value ?? '';
+  ta.addEventListener('input', e => { onChange(e.target.value); markDirty(true); });
+  field.append(lab, ta);
+  return field;
+}
+
+function selectField(label, value, options, onChange) {
+  const field = document.createElement('div');
+  field.className = 'field';
+  const lab = document.createElement('label'); lab.textContent = label;
+  const select = document.createElement('select');
+  options.forEach(([val, text]) => {
+    const option = document.createElement('option');
+    option.value = val; option.textContent = text;
+    if (String(val) === String(value)) option.selected = true;
+    select.appendChild(option);
+  });
+  select.addEventListener('change', e => { onChange(e.target.value); markDirty(true); });
+  field.append(lab, select);
+  return field;
+}
+
+function toggleField(label, value, onChange) {
+  const row = document.createElement('div');
+  row.className = 'toggle-row';
+  const left = document.createElement('div');
+  left.textContent = label;
+  const select = document.createElement('select');
+  select.innerHTML = `<option value="true" ${value ? 'selected' : ''}>사용</option><option value="false" ${!value ? 'selected' : ''}>미사용</option>`;
+  select.addEventListener('change', e => { onChange(e.target.value === 'true'); markDirty(true); });
+  row.append(left, select);
+  return row;
+}
+
+function createArrayEditorCard(title, desc, items, setter) {
+  const card = createCardElement(title, desc);
+  card.querySelector('.card-body').appendChild(createArrayEditorInline(title, items, setter));
+  return card;
+}
+
+function createArrayEditorInline(label, items, setter) {
+  const wrap = document.createElement('div');
+  wrap.className = 'array-editor';
+  wrap.appendChild(createLabel(label));
+  const tags = document.createElement('div'); tags.className = 'tag-list';
+  const renderTags = () => {
+    tags.innerHTML = '';
+    items.forEach((item, index) => {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.innerHTML = `${escapeHtml(item)} <button type="button">✕</button>`;
+      tag.querySelector('button').addEventListener('click', () => {
+        items.splice(index, 1);
+        setter(items);
+        markDirty(true);
+        renderTags();
+      });
+      tags.appendChild(tag);
+    });
+  };
+  renderTags();
+  const row = document.createElement('div'); row.className = 'row';
+  const input = document.createElement('input'); input.placeholder = '항목 추가';
+  const btn = document.createElement('button'); btn.className = 'btn-inline'; btn.textContent = '추가';
+  btn.addEventListener('click', () => {
+    const value = input.value.trim();
+    if (!value) return;
+    items.push(value);
+    setter(items);
+    markDirty(true);
+    input.value = '';
+    renderTags();
+  });
+  row.append(input, btn);
+  wrap.append(tags, row);
+  return wrap;
+}
+
+function sectionGrid() {
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  return grid;
+}
+
+function createCard(title, desc, innerHtml) {
+  const card = createCardElement(title, desc);
+  card.querySelector('.card-body').innerHTML = innerHtml;
+  return card;
+}
+
+function createCardElement(title, desc) {
+  const tpl = document.getElementById('cardTemplate');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  node.querySelector('h3').textContent = title;
+  node.querySelector('p').textContent = desc;
+  return node;
+}
+
+function createLabel(text) {
+  const label = document.createElement('div');
+  label.className = 'inline-help';
+  label.textContent = text;
+  return label;
+}
+
+function resultCard(title, content) {
+  return createCard(title, '시뮬레이션 결과', `<div class="preview-box">${escapeHtml(content)}</div>`);
+}
+
+function simulatePhotocardLines(lines) {
+  const results = [];
+  const seen = new Set();
+  lines.forEach(line => {
+    if (!line.includes(state.photocard.includeKeywords[0])) return;
+    if (state.photocard.excludeKeywords.some(keyword => line.includes(keyword))) return;
+    const m = line.match(/(\d+)\s*(?:매|종)/);
+    if (!m) return;
+    let name = line
+      .replace(/^\d+\.\s*/, '')
+      .replace(/^[-•]\s*/, '')
+      .replace(/\s*\d+\s*(?:매|종).*$/, '')
+      .replace(/\s*\(.*?\)/g, '')
+      .replace(/\s*-.*$/, '')
+      .trim();
+    if (!name || name.length < state.photocard.minNameLength) return;
+    if (state.photocard.dedupeMode === 'dedupe' && seen.has(name)) return;
+    seen.add(name);
+    results.push({ name, count: Number(m[1]) });
+  });
+  return results;
+}
+
+function simulateBenefitLines(lines) {
+  const results = [];
+  const seen = {};
+  lines.forEach(line => {
+    if (line.includes('포토카드')) return;
+    const keyword = state.benefit.keywords.find(k => line.includes(k));
+    if (!keyword) return;
+    const item = extractBenefitItem(line, keyword);
+    if (!item) return;
+    const isExcluded = state.benefit.excludePatterns.some(pattern => {
+      try { return new RegExp(pattern, 'i').test(line) && !new RegExp(`${escapeRegex(item.name)}\\s*${item.count}\\s*(?:매|종|개)`).test(line); }
+      catch { return line.includes(pattern); }
+    });
+    if (isExcluded) return;
+    if (state.benefit.dedupeMode === 'sum' && seen[item.name] !== undefined) {
+      results[seen[item.name]].count += item.count;
+    } else if (state.benefit.dedupeMode === 'dedupe' && seen[item.name] !== undefined) {
+      return;
+    } else {
+      seen[item.name] = results.length;
+      results.push(item);
+    }
+  });
+  return results;
+}
+
+function extractBenefitItem(text, keyword) {
+  const escaped = escapeRegex(keyword);
+  const match = text.match(new RegExp(`(.{0,80}?${escaped})\\s*(\\d+)\\s*(?:매|종|개)`));
+  if (!match) return null;
+  const name = match[1]
+    .replace(/^\d+\.\s*/, '')
+    .replace(/^[-•]\s*/, '')
+    .replace(/.*(?:구매\s*시|특전\s*[:：]|증정품\s*[:：]|구성\s*[:：]|\/|,|·)\s*/, '')
+    .replace(/\s*\(.*?\)\s*$/g, '')
+    .trim();
+  if (!name) return null;
+  return { name, count: Number(match[2]) };
+}
+
+function detectEventsFromText(text) {
+  const lowerText = String(text);
+  const found = [];
+  const sorted = [...state.eventMappings].sort((a, b) => a.priority - b.priority);
+  let vcCount = 0;
+  sorted.forEach(mapping => {
+    const hit = mapping.keywords.some(keyword => keyword && lowerText.toLowerCase().includes(keyword.toLowerCase()));
+    if (!hit) return;
+    if (mapping.name === '영통 1' || mapping.name === '영통 2') {
+      vcCount += mapping.keywords.reduce((sum, keyword) => sum + countOccurrences(lowerText, keyword), 0);
+      return;
+    }
+    if (!found.includes(mapping.name)) found.push(mapping.name);
+  });
+  if (vcCount >= 1) found.push('영통 1');
+  if (vcCount >= 2) found.push('영통 2');
+  if (!found.length) found.push('기타');
+  return unique(found);
+}
+
+function buildOpenContextFromSample(text, productCode, blueBoxCount, existingProductCode, eventLabels) {
+  const outputs = [...state.open.fixedOutputs, state.open.storyRule.replace('{blueBoxCount}', blueBoxCount)];
+  if (state.open.includePackshotIfMissingProduct && !existingProductCode) outputs.push('팩샷');
+  const sns = buildOpenSnsItemsFromText(text, eventLabels);
+  outputs.push(`SNS (${sns.length})종`);
+  return {
+    productCode,
+    blueBoxCount,
+    eventLabels,
+    outputs,
+    sns,
+    compositeImageNeeded: blueBoxCount === 1 ? 'O' : 'X'
+  };
+}
+
+function buildOpenPreviewText(ctx) {
+  return [
+    `${state.open.planningSectionLabel}: URL >`,
+    `${state.open.dataSectionLabel}: URL 또는 MAS 위치`,
+    `${state.open.questionSectionLabel}: 통이미지 작업 필요 여부 : ${ctx.compositeImageNeeded}`,
+    `${state.open.outputSectionLabel}:`,
+    ...ctx.outputs.map(v => `- ${v}`),
+    'SNS 세부:',
+    ...ctx.sns.map(v => `  · ${v}`)
+  ].join('\n');
+}
+
+function buildOpenSnsItemsFromText(text, eventLabels) {
+  const items = [...state.openRules.snsBaseItems];
+  if (state.openRules.promoTriggerKeywords.some(k => text.includes(k))) {
+    items.push(...state.openRules.snsPromoItems);
+  }
+  if (state.openRules.scheduleKeywords.some(k => text.includes(k)) || eventLabels.includes('대면') || eventLabels.includes('쇼케이스 초대')) {
+    items.push(state.openRules.snsScheduleItem);
+  }
+  if (eventLabels.length >= 2) items.push(...state.openRules.snsCombinedItems);
+  else items.push(state.openRules.snsSingleBenefitItem);
+  return unique(items);
+}
+
+function buildAppsScriptSnippet(config) {
+  return `const RULES_CONFIG = ${JSON.stringify(config, null, 2)};\n\n// 예시\n// const BENEFIT_KEYWORDS = RULES_CONFIG.benefit.keywords;\n// const EXCLUDE_KEYWORDS_PC = RULES_CONFIG.photocard.excludeKeywords;\n// const EXCLUDE_PATTERNS_BENEFIT = RULES_CONFIG.benefit.excludePatterns.map(v => new RegExp(v, 'i'));`;
+}
+
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : deepClone(DEFAULT_CONFIG);
+  } catch {
+    return deepClone(DEFAULT_CONFIG);
+  }
+}
+
+function saveConfig() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  markDirty(false);
+  alert('브라우저 로컬 저장소에 저장했습니다.');
+  render();
+}
+
+function markDirty(value) {
+  dirty = value;
+  updateSaveState();
+}
+
+function updateSaveState() {
+  saveState.textContent = dirty ? '저장되지 않은 변경사항이 있습니다' : '저장되지 않은 변경사항 없음';
+  saveState.style.color = dirty ? '#c35f00' : '#66758a';
+}
+
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+function unique(arr) { return [...new Set(arr.filter(Boolean))]; }
+function escapeRegex(value) { return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function countOccurrences(text, keyword) {
+  if (!keyword) return 0;
+  const re = new RegExp(escapeRegex(keyword), 'ig');
+  return (String(text).match(re) || []).length;
+}
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+  const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+}
+
+</script>
+</body>
+</html>
