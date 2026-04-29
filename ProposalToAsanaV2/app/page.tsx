@@ -366,9 +366,11 @@ export default function HomePage() {
             >
               MAKESTAR 태스크 머신
             </button>
-            <span className="text-ms-gold text-xs font-semibold tracking-wide">v2</span>
-            <span className="text-ms-faint text-xs">·</span>
-            <span className="text-ms-muted text-xs">Beta</span>
+            <div className="flex items-center gap-1">
+              <span className="text-ms-gold text-xs font-semibold tracking-wide">v0.8</span>
+              <span className="text-ms-faint text-xs">·</span>
+              <span className="text-ms-muted text-xs">Beta</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <TokenInput
