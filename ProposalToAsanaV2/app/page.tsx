@@ -240,6 +240,22 @@ export default function HomePage() {
 
   async function handleCreate() {
     if (!token || !projectGid || !plan) return;
+
+    // ── 해외 단독 프로젝트: 당첨자 선정 팝업 ───────────────────────────────
+    let effectiveRows = rows;
+    const selectedProjectName = projects.find((p) => p.gid === projectGid)?.name ?? "";
+    const isHaewaeProject = selectedProjectName.includes("해외 단독");
+    const winnerRow = rows.find((r) => r.key === "winner");
+    if (isHaewaeProject && winnerRow?.enabled && !derivativeInfo) {
+      const skip = window.confirm(
+        "선택하신 프로젝트는 「해외 단독」 프로젝트입니다.\n당첨자 선정 태스크를 만들지 않을까요?"
+      );
+      if (skip) {
+        effectiveRows = rows.map((r) => r.key === "winner" ? { ...r, enabled: false } : r);
+        setRows(effectiveRows);
+      }
+    }
+
     setStep("creating");
     setErrorMsg("");
 
@@ -252,7 +268,7 @@ export default function HomePage() {
           projectGid,
           sectionName,
           plan,
-          rows,
+          rows: effectiveRows,
           ...(() => {
             try {
               const cfg = JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY) || "{}");

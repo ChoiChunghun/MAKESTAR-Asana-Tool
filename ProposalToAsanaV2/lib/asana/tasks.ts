@@ -173,7 +173,7 @@ export async function createTasksFromPreview(
 }
 
 async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "md");
   const mdName = title(rowMap, "md", `[${summary.productCode}] MD`);
@@ -191,7 +191,6 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
   applyDue(mdPayload, dueFields);
   applyFollowers(mdPayload, followerGids);
   const mdGid = await createTask(mdPayload, token);
-  await safeSetEventField(mdGid, eventLabels, ctx, mdName);
   ctx.topLevelTaskGids.push(mdGid);
   record(ctx, "md", mdGid, mdName);
 
@@ -207,7 +206,6 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
     applyDue(pcPayload, dueFields);
     applyFollowers(pcPayload, followerGids);
     const pcGid = await createTask(pcPayload, token);
-    await safeSetEventField(pcGid, eventLabels, ctx);
     record(ctx, "pc", pcGid, pcName);
   }
 
@@ -223,13 +221,12 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
     applyDue(spPayload, dueFields);
     applyFollowers(spPayload, followerGids);
     const spGid = await createTask(spPayload, token);
-    await safeSetEventField(spGid, eventLabels, ctx);
     record(ctx, "sp", spGid, spName);
   }
 }
 
 async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "update");
   const upName = title(rowMap, "up", `[${summary.productCode}] 업데이트`);
@@ -246,7 +243,6 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
   applyDue(upPayload, dueFields);
   applyFollowers(upPayload, followerGids);
   const upGid = await createTask(upPayload, token);
-  await safeSetEventField(upGid, eventLabels, ctx);
   ctx.topLevelTaskGids.push(upGid);
   record(ctx, "up", upGid, upName);
 
@@ -262,7 +258,6 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
     applyDue(subPayload, dueFields);
     applyFollowers(subPayload, followerGids);
     const subGid = await createTask(subPayload, token);
-    await safeSetEventField(subGid, eventLabels, ctx);
     record(ctx, "upsub", subGid, upSubName);
   }
 }
@@ -321,7 +316,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 }
 
 async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary, openContext } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "vmd");
   const vmdName = title(rowMap, "vmd", `[${summary.productCode}] VMD`);
@@ -338,7 +333,6 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
   applyDue(vmdPayload, dueFields);
   applyFollowers(vmdPayload, followerGids);
   const vmdGid = await createTask(vmdPayload, token);
-  await safeSetEventField(vmdGid, eventLabels, ctx);
   ctx.topLevelTaskGids.push(vmdGid);
   record(ctx, "vmd", vmdGid, vmdName);
 
@@ -354,13 +348,12 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
     applyDue(subPayload, dueFields);
     applyFollowers(subPayload, followerGids);
     const subGid = await createTask(subPayload, token);
-    await safeSetEventField(subGid, eventLabels, ctx);
     record(ctx, "vmdsub", subGid, subName);
   }
 }
 
 async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, eventLabels, followerGids } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, followerGids } = ctx;
   const { summary } = request.plan;
   const dueFields = getWinnerDueFields(request.plan.normalizedData);
   const winnerName = title(rowMap, "winner", `[${summary.productCode}] 당첨자 선정`);
@@ -376,7 +369,6 @@ async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
   applyDue(payload, dueFields);
   applyFollowers(payload, followerGids);
   const gid = await createTask(payload, token);
-  await safeSetEventField(gid, eventLabels, ctx);
   ctx.topLevelTaskGids.push(gid);
   record(ctx, "winner", gid, winnerName);
 }
