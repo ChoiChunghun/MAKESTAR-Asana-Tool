@@ -5,6 +5,7 @@ import type { ActivityEntry } from "@/lib/activityLog";
 
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
 const ADMIN_AUTH_KEY = "proposal2asana_admin_auth";
+const ADMIN_PW_KEY = "proposal2asana_admin_pw";
 
 type StringListField = { items: string[]; label: string; description: string };
 
@@ -126,11 +127,17 @@ export default function AdminPage() {
     if (!confirm("전체 생성 이력을 삭제하시겠습니까?")) return;
     setHistoryClearing(true);
     try {
-      await fetch("/api/admin/activity", {
+      const res = await fetch("/api/admin/activity", {
         method: "DELETE",
         headers: { "x-admin-password": password }
       });
+      if (!res.ok) {
+        const data = await res.json() as { message?: string };
+        throw new Error(data.message || "삭제 실패");
+      }
       setHistoryEntries([]);
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
     } finally {
       setHistoryClearing(false);
     }
@@ -166,7 +173,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     const auth = sessionStorage.getItem(ADMIN_AUTH_KEY);
-    if (auth === "true") setIsAuth(true);
+    if (auth === "true") {
+      setIsAuth(true);
+      // 세션 내 비밀번호 복원 (탭 새로고침 시 API 인증 유지)
+      const pw = sessionStorage.getItem(ADMIN_PW_KEY);
+      if (pw) setPassword(pw);
+    }
     const saved = localStorage.getItem(ADMIN_CONFIG_KEY);
     if (saved) {
       try {
@@ -188,6 +200,7 @@ export default function AdminPage() {
       if (data.ok) {
         setIsAuth(true);
         sessionStorage.setItem(ADMIN_AUTH_KEY, "true");
+        sessionStorage.setItem(ADMIN_PW_KEY, password);
       } else {
         setAuthError(data.message || "비밀번호가 올바르지 않습니다.");
       }
