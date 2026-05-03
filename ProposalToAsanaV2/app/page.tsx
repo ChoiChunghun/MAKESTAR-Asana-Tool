@@ -266,6 +266,7 @@ export default function HomePage() {
         body: JSON.stringify({
           asanaToken: token,
           projectGid,
+          projectName: projects.find((p) => p.gid === projectGid)?.name ?? projectGid,
           sectionName,
           plan,
           rows: effectiveRows,

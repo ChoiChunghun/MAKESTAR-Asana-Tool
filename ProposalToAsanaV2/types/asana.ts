@@ -14,6 +14,7 @@ export type DerivativeMode = {
 export type AsanaCreateTasksRequest = {
   asanaToken: string;
   projectGid: string;
+  projectName?: string;
   sectionName: string;
   plan: ParsedPlanResult;
   rows: PreviewTaskRow[];

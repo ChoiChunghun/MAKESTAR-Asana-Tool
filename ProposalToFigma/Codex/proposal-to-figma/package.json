@@ -1,0 +1,15 @@
+{
+  "name": "proposal-to-figma",
+  "private": true,
+  "workspaces": [
+    "apps/backend",
+    "apps/figma-plugin"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @proposal-to-figma/backend && npm run build --workspace @proposal-to-figma/figma-plugin",
+    "typecheck": "npm run typecheck --workspace @proposal-to-figma/backend && npm run typecheck --workspace @proposal-to-figma/figma-plugin",
+    "dev:backend": "npm run dev --workspace @proposal-to-figma/backend",
+    "build:plugin": "npm run build --workspace @proposal-to-figma/figma-plugin"
+  }
+}
+

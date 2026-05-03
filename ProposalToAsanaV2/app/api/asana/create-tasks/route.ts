@@ -3,6 +3,7 @@ import type { AsanaCreateTasksRequest } from "@/types/asana";
 import { createTasksFromPreview } from "@/lib/asana/tasks";
 import { toUserFriendlyAsanaError } from "@/lib/asana/errors";
 import { checkRateLimit, tokenToIdentifier } from "@/lib/ratelimit";
+import { pushActivityLog } from "@/lib/activityLog";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,21 @@ export async function POST(request: Request) {
     }
 
     const result = await createTasksFromPreview(body);
+
+    // KV 로깅 — 실패해도 태스크 생성 결과에 영향 없음
+    if (process.env.KV_REST_API_URL) {
+      pushActivityLog({
+        projectName:  body.projectName ?? body.projectGid,
+        sectionName:  body.sectionName ?? "",
+        artistName:   body.plan.normalizedData?.artistName ?? "",
+        albumName:    body.plan.normalizedData?.albumName ?? "",
+        eventLabels:  body.plan.openContext?.eventLabels ?? [],
+        taskCount:    result.createdTasks?.length ?? 0,
+        tokenHint:    (body.asanaToken || "").slice(-4),
+        isDerivative: !!body.derivative
+      }).catch(() => { /* silent */ });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ message: toUserFriendlyAsanaError(error) }, { status: 500 });

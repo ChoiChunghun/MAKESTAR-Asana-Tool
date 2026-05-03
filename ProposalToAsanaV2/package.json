@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vercel/kv": "^3.0.0",
     "mammoth": "^1.8.0",
     "next": "^14.2.25",
     "pdf-parse": "^1.1.1",

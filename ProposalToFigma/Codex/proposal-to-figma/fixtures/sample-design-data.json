@@ -1,0 +1,326 @@
+{
+  "designId": "MS-458_687f0f1f",
+  "sourceSpreadsheetId": "sample-spreadsheet-id",
+  "sourceSheetName": "Sample",
+  "sourceRange": "B:B",
+  "sourceHash": "687f0f1f042f85af2251897db4a42c174be49f899fa06a593782268852be85b2",
+  "proposal": {
+    "sourceSpreadsheetId": "sample-spreadsheet-id",
+    "sourceSheetName": "Sample",
+    "sourceRange": "B:B",
+    "rawRows": [
+      {
+        "rowNumber": 1,
+        "value": "[MS-458] ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT",
+        "sourceRef": "Sample!B1"
+      },
+      {
+        "rowNumber": 2,
+        "value": "상품 코드: MS-458",
+        "sourceRef": "Sample!B2"
+      },
+      {
+        "rowNumber": 3,
+        "value": "이벤트명",
+        "sourceRef": "Sample!B3"
+      },
+      {
+        "rowNumber": 4,
+        "value": "MAKESTAR ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT",
+        "sourceRef": "Sample!B4"
+      },
+      {
+        "rowNumber": 5,
+        "value": "아티스트",
+        "sourceRef": "Sample!B5"
+      },
+      {
+        "rowNumber": 6,
+        "value": "ZEROBASEONE",
+        "sourceRef": "Sample!B6"
+      },
+      {
+        "rowNumber": 7,
+        "value": "앨범",
+        "sourceRef": "Sample!B7"
+      },
+      {
+        "rowNumber": 8,
+        "value": "BLUE PARADISE",
+        "sourceRef": "Sample!B8"
+      },
+      {
+        "rowNumber": 9,
+        "value": "판매 기간",
+        "sourceRef": "Sample!B9"
+      },
+      {
+        "rowNumber": 10,
+        "value": "2026.05.01 10:00 - 2026.05.08 23:59 KST",
+        "sourceRef": "Sample!B10"
+      },
+      {
+        "rowNumber": 11,
+        "value": "응모 기간",
+        "sourceRef": "Sample!B11"
+      },
+      {
+        "rowNumber": 12,
+        "value": "2026.05.01 10:00 - 2026.05.08 23:59 KST",
+        "sourceRef": "Sample!B12"
+      },
+      {
+        "rowNumber": 13,
+        "value": "당첨자 발표",
+        "sourceRef": "Sample!B13"
+      },
+      {
+        "rowNumber": 14,
+        "value": "2026.05.09 18:00 KST",
+        "sourceRef": "Sample!B14"
+      },
+      {
+        "rowNumber": 15,
+        "value": "메이크스타 특전",
+        "sourceRef": "Sample!B15"
+      },
+      {
+        "rowNumber": 16,
+        "value": "미공개 포토카드 2종 증정",
+        "sourceRef": "Sample!B16"
+      },
+      {
+        "rowNumber": 17,
+        "value": "홀로그램 포토카드 1종 증정",
+        "sourceRef": "Sample!B17"
+      },
+      {
+        "rowNumber": 18,
+        "value": "사인 폴라로이드 1개 추첨",
+        "sourceRef": "Sample!B18"
+      },
+      {
+        "rowNumber": 19,
+        "value": "영상통화 이벤트 응모권 1종",
+        "sourceRef": "Sample!B19"
+      },
+      {
+        "rowNumber": 20,
+        "value": "채널: MAKESTAR / X / INSTAGRAM",
+        "sourceRef": "Sample!B20"
+      },
+      {
+        "rowNumber": 21,
+        "value": "#ZEROBASEONE #BLUEPARADISE",
+        "sourceRef": "Sample!B21"
+      },
+      {
+        "rowNumber": 22,
+        "value": "사이트 안내: www.makestar.co",
+        "sourceRef": "Sample!B22"
+      },
+      {
+        "rowNumber": 23,
+        "value": "",
+        "sourceRef": "Sample!B23"
+      }
+    ],
+    "rawText": "[MS-458] ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT\n상품 코드: MS-458\n이벤트명\nMAKESTAR ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT\n아티스트\nZEROBASEONE\n앨범\nBLUE PARADISE\n판매 기간\n2026.05.01 10:00 - 2026.05.08 23:59 KST\n응모 기간\n2026.05.01 10:00 - 2026.05.08 23:59 KST\n당첨자 발표\n2026.05.09 18:00 KST\n메이크스타 특전\n미공개 포토카드 2종 증정\n홀로그램 포토카드 1종 증정\n사인 폴라로이드 1개 추첨\n영상통화 이벤트 응모권 1종\n채널: MAKESTAR / X / INSTAGRAM\n#ZEROBASEONE #BLUEPARADISE\n사이트 안내: www.makestar.co\n",
+    "productCode": "MS-458",
+    "eventTitle": "MAKESTAR ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT",
+    "artistName": "ZEROBASEONE",
+    "albumName": "BLUE PARADISE",
+    "eventType": {
+      "hasVideoCall": true,
+      "hasFansign": false,
+      "hasShowcase": false,
+      "hasLuckyDraw": false,
+      "hasPopup": false,
+      "hasOffline": false,
+      "hasOnline": true
+    },
+    "schedule": {
+      "salesPeriod": "2026.05.01 10:00 - 2026.05.08 23:59 KST",
+      "applyPeriod": "2026.05.01 10:00 - 2026.05.08 23:59 KST",
+      "winnerDate": "2026.05.09 18:00 KST"
+    },
+    "benefits": [
+      {
+        "benefitType": "Photocard",
+        "rawText": "미공개 포토카드 2종 증정",
+        "name": "미공개 포토카드",
+        "count": 2,
+        "value": "Null",
+        "effect": "Null",
+        "cardType": "Vertical",
+        "sourceRef": "Sample!B16"
+      },
+      {
+        "benefitType": "Photocard",
+        "rawText": "홀로그램 포토카드 1종 증정",
+        "name": "홀로그램 포토카드",
+        "count": 1,
+        "value": "Null",
+        "effect": "Hologram",
+        "cardType": "Vertical",
+        "sourceRef": "Sample!B17"
+      },
+      {
+        "benefitType": "Pic",
+        "rawText": "사인 폴라로이드 1개 추첨",
+        "name": "사인 폴라로이드",
+        "count": 1,
+        "value": "Sign",
+        "effect": "Null",
+        "cardType": "Polar",
+        "sourceRef": "Sample!B18"
+      },
+      {
+        "benefitType": "Event",
+        "rawText": "영상통화 이벤트 응모권 1종",
+        "name": "영상통화 이벤트",
+        "count": 1,
+        "value": "Null",
+        "effect": "Null",
+        "cardType": "Vertical",
+        "sourceRef": "Sample!B19"
+      }
+    ],
+    "conditionGroups": [],
+    "channels": {
+      "makestar": true,
+      "weidian": false,
+      "x": true,
+      "instagram": true
+    },
+    "designHints": {
+      "language": "KR",
+      "hasEventHashtag": true,
+      "hasSiteInfo": true
+    },
+    "sourceMap": {
+      "basicInfo": [
+        "Sample!B1",
+        "Sample!B3",
+        "Sample!B4",
+        "Sample!B5",
+        "Sample!B6",
+        "Sample!B7",
+        "Sample!B8"
+      ],
+      "schedule": [
+        "Sample!B9",
+        "Sample!B10",
+        "Sample!B11",
+        "Sample!B12",
+        "Sample!B13",
+        "Sample!B14"
+      ],
+      "benefits": [
+        "Sample!B16",
+        "Sample!B17",
+        "Sample!B18",
+        "Sample!B19"
+      ],
+      "conditions": [],
+      "channels": [
+        "Sample!B4",
+        "Sample!B15",
+        "Sample!B20",
+        "Sample!B22"
+      ],
+      "designHints": [
+        "Sample!B4",
+        "Sample!B20",
+        "Sample!B21",
+        "Sample!B22"
+      ]
+    },
+    "reviewFlags": []
+  },
+  "outputs": [
+    {
+      "outputId": "MS-458_BANNER",
+      "outputType": "BANNER",
+      "templateLabel": "MAKESTAR-WEIDIAN / Banner",
+      "templateInstanceName": "Banner",
+      "componentProps": {
+        "Photo": "Mobile"
+      },
+      "textBindings": {},
+      "imageBindings": {},
+      "colorBindings": {},
+      "sourceRefs": [
+        "Sample!B1",
+        "Sample!B3",
+        "Sample!B4",
+        "Sample!B5",
+        "Sample!B6",
+        "Sample!B7",
+        "Sample!B8"
+      ],
+      "reviewFlags": []
+    },
+    {
+      "outputId": "MS-458_STORY",
+      "outputType": "STORY",
+      "templateLabel": "MAKESTAR-WEIDIAN / Story",
+      "templateInstanceName": "Story",
+      "componentProps": {
+        "Item": "4",
+        "Background": "On"
+      },
+      "textBindings": {},
+      "imageBindings": {},
+      "colorBindings": {},
+      "sourceRefs": [
+        "Sample!B16",
+        "Sample!B17",
+        "Sample!B18",
+        "Sample!B19"
+      ],
+      "reviewFlags": []
+    },
+    {
+      "outputId": "MS-458_SNS_X_OPEN_01",
+      "outputType": "SNS_X_OPEN_01",
+      "templateLabel": "Template SNS / X / OPEN / 01",
+      "templateInstanceName": "OPEN / 01",
+      "componentProps": {
+        "Gradient": "Null",
+        "TxtColor": "Black",
+        "Tag": "On",
+        "Site": "On",
+        "Benefit": "4"
+      },
+      "textBindings": {
+        "artistAlbumTitle": "ZEROBASEONE BLUE PARADISE",
+        "eventTitle": "MAKESTAR ZEROBASEONE BLUE PARADISE VIDEO CALL EVENT",
+        "periodText": "2026.05.01 10:00 - 2026.05.08 23:59 KST",
+        "siteText": "MAKESTAR"
+      },
+      "imageBindings": {},
+      "colorBindings": {},
+      "sourceRefs": [
+        "Sample!B1",
+        "Sample!B3",
+        "Sample!B4",
+        "Sample!B5",
+        "Sample!B6",
+        "Sample!B7",
+        "Sample!B8",
+        "Sample!B9",
+        "Sample!B10",
+        "Sample!B11",
+        "Sample!B12",
+        "Sample!B13",
+        "Sample!B14",
+        "Sample!B16",
+        "Sample!B17",
+        "Sample!B18",
+        "Sample!B19"
+      ],
+      "reviewFlags": []
+    }
+  ]
+}

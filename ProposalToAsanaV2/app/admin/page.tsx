@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import type { ActivityEntry } from "@/lib/activityLog";
 
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
 const ADMIN_AUTH_KEY = "proposal2asana_admin_auth";
@@ -84,7 +85,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [config, setConfig] = useState<AdminConfig>(DEFAULT_CONFIG);
-  const [activeTab, setActiveTab] = useState<"parsing" | "tasks" | "fields">("parsing");
+  const [activeTab, setActiveTab] = useState<"parsing" | "tasks" | "fields" | "history">("parsing");
   const [savedMsg, setSavedMsg] = useState("");
 
   // 커스텀 필드 조회
@@ -93,6 +94,47 @@ export default function AdminPage() {
   const [lookupError, setLookupError] = useState("");
   const [lookedUpFields, setLookedUpFields] = useState<CustomFieldInfo[]>([]);
   const [copiedGid, setCopiedGid] = useState("");
+
+  // ── 생성 이력 ───────────────────────────────────────────────────────────
+  const [historyEntries, setHistoryEntries] = useState<ActivityEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyClearing, setHistoryClearing] = useState(false);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const res = await fetch("/api/admin/activity?limit=200", {
+        headers: { "x-admin-password": password }
+      });
+      const data = await res.json() as { entries?: ActivityEntry[]; message?: string };
+      if (!res.ok) throw new Error(data.message);
+      setHistoryEntries(data.entries ?? []);
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : "이력 조회 실패");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [password]);
+
+  useEffect(() => {
+    if (activeTab === "history" && isAuth) fetchHistory();
+  }, [activeTab, isAuth, fetchHistory]);
+
+  async function clearHistory() {
+    if (!confirm("전체 생성 이력을 삭제하시겠습니까?")) return;
+    setHistoryClearing(true);
+    try {
+      await fetch("/api/admin/activity", {
+        method: "DELETE",
+        headers: { "x-admin-password": password }
+      });
+      setHistoryEntries([]);
+    } finally {
+      setHistoryClearing(false);
+    }
+  }
 
   async function fetchCustomFields() {
     const token = sessionStorage.getItem(TOKEN_KEY) || "";
@@ -196,9 +238,10 @@ export default function AdminPage() {
   }
 
   const tabs = [
-    { id: "parsing" as const, label: "파싱 조건" },
-    { id: "tasks" as const, label: "태스크 설정" },
-    { id: "fields" as const, label: "커스텀 필드 GID" }
+    { id: "parsing" as const,  label: "파싱 조건" },
+    { id: "tasks"   as const,  label: "태스크 설정" },
+    { id: "fields"  as const,  label: "커스텀 필드 GID" },
+    { id: "history" as const,  label: "생성 이력" }
   ];
 
   return (
@@ -513,6 +556,106 @@ export default function AdminPage() {
           </div>
         )}
 
+        {activeTab === "history" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-semibold">태스크 생성 이력</h2>
+                <p className="text-ms-muted text-xs mt-0.5">베타 테스트 기간 중 모든 사용자의 생성 이벤트 — 최근 200건</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={fetchHistory} disabled={historyLoading} className="btn px-3 py-1.5 text-sm">
+                  {historyLoading ? <span className="spinner-sm" /> : "새로고침"}
+                </button>
+                <button type="button" onClick={clearHistory} disabled={historyClearing} className="btn px-3 py-1.5 text-sm text-red-400 hover:text-red-300">
+                  전체 삭제
+                </button>
+              </div>
+            </div>
+
+            {historyError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                {historyError === "KV not configured"
+                  ? "Vercel KV가 연결되지 않았습니다. Vercel 대시보드 → Storage → KV를 먼저 설정해주세요."
+                  : historyError}
+              </div>
+            )}
+
+            {!historyError && historyEntries.length === 0 && !historyLoading && (
+              <div className="card text-center py-10 text-ms-muted text-sm">아직 생성 이력이 없습니다.</div>
+            )}
+
+            {historyEntries.length > 0 && (
+              <div className="space-y-2">
+                {/* 요약 카운터 */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="card py-3 text-center">
+                    <p className="text-ms-gold text-2xl font-bold">{historyEntries.length}</p>
+                    <p className="text-ms-muted text-xs mt-1">총 생성 건수</p>
+                  </div>
+                  <div className="card py-3 text-center">
+                    <p className="text-ms-gold text-2xl font-bold">
+                      {historyEntries.reduce((s, e) => s + e.taskCount, 0)}
+                    </p>
+                    <p className="text-ms-muted text-xs mt-1">생성된 태스크 수</p>
+                  </div>
+                  <div className="card py-3 text-center">
+                    <p className="text-ms-gold text-2xl font-bold">
+                      {new Set(historyEntries.map((e) => e.tokenHint)).size}
+                    </p>
+                    <p className="text-ms-muted text-xs mt-1">사용자 수 (추정)</p>
+                  </div>
+                </div>
+
+                {/* 이력 테이블 */}
+                <div className="overflow-x-auto rounded-lg border border-ms-border/50">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-ms-border/50 bg-ms-subtle">
+                        <th className="text-left text-ms-muted font-medium px-3 py-2 w-36">시각</th>
+                        <th className="text-left text-ms-muted font-medium px-3 py-2">섹션 (이벤트)</th>
+                        <th className="text-left text-ms-muted font-medium px-3 py-2">아티스트</th>
+                        <th className="text-left text-ms-muted font-medium px-3 py-2">이벤트 구분</th>
+                        <th className="text-left text-ms-muted font-medium px-3 py-2 w-16">태스크</th>
+                        <th className="text-left text-ms-muted font-medium px-3 py-2 w-16">사용자</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyEntries.map((entry) => (
+                        <tr key={entry.id} className="border-b border-ms-border/30 hover:bg-ms-subtle/50 transition-colors">
+                          <td className="px-3 py-2 text-ms-faint font-mono text-xs whitespace-nowrap">
+                            {new Date(entry.ts).toLocaleString("ko-KR", {
+                              month: "2-digit", day: "2-digit",
+                              hour: "2-digit", minute: "2-digit"
+                            })}
+                          </td>
+                          <td className="px-3 py-2 text-white text-xs max-w-48 truncate" title={entry.sectionName}>
+                            {entry.sectionName}
+                            {entry.isDerivative && (
+                              <span className="ml-1.5 text-ms-gold text-xs">파생</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-ms-text text-xs">{entry.artistName || "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {(entry.eventLabels ?? []).map((l) => (
+                                <span key={l} className="text-xs px-1.5 py-0.5 rounded bg-ms-accent/20 text-ms-accent">{l}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-ms-text text-xs text-center">{entry.taskCount}</td>
+                          <td className="px-3 py-2 text-ms-faint font-mono text-xs">···{entry.tokenHint}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab !== "history" && (
         <div className="flex items-center gap-3 mt-8">
           <button type="button" onClick={saveConfig} className="btn-accent px-6 py-2.5">
             저장
@@ -522,6 +665,7 @@ export default function AdminPage() {
           </button>
           {savedMsg && <span className="dot-green text-sm">{savedMsg}</span>}
         </div>
+        )}
       </main>
     </div>
   );
