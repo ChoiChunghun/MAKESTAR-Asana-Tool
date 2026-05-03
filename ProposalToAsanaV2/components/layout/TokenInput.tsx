@@ -75,7 +75,7 @@ export function TokenInput({ token, onTokenChange }: Props) {
             </button>
           )}
         </div>
-        <p className="text-ms-faint text-xs mt-2">브라우저 로컬스토리지에만 저장됩니다.</p>
+        <p className="text-ms-faint text-xs mt-2">브라우저 세션 스토리지에만 저장되며, 탭을 닫으면 자동 삭제됩니다.</p>
       </div>
     </div>
   );
