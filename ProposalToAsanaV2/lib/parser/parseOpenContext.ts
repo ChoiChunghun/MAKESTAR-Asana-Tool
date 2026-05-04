@@ -6,6 +6,7 @@ export function buildOpenContext(data: NormalizedPlanData, productCode: string):
   const eventLabels = detectOpenEvents(data.eventSourceText);
   const storyCount = countStoryItems(data);
   const hasPromoEvent = String(data.fullText || "").includes("홍보 이벤트");
+  const isYdn = detectYdn(data);
 
   return {
     planningUrl: "",
@@ -18,8 +19,20 @@ export function buildOpenContext(data: NormalizedPlanData, productCode: string):
     includePackshot: true,
     snsItems: buildSnsItems(eventLabels, hasPromoEvent),
     eventSourceText: data.eventSourceText || productCode,
-    hasPromoEvent
+    hasPromoEvent,
+    isYdn
   };
+}
+
+/** 웨이디엔(YDN) 플랫폼 오픈 감지: 기획서 내 "웨이디엔" 또는 "YDN" 키워드 */
+function detectYdn(data: NormalizedPlanData): boolean {
+  const searchText = [
+    data.venue,
+    data.eventTitle,
+    data.eventSourceText,
+    data.fullText.slice(0, 1000)
+  ].join(" ");
+  return /웨이디엔|ydn/i.test(searchText);
 }
 
 export function detectOpenEvents(text: string): OpenEventLabel[] {

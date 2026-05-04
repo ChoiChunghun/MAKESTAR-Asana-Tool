@@ -121,6 +121,31 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
       parentKey: "open",
       available: true,
       enabled: true
+    },
+    // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생모드 제외, 플랫폼별 구분) ──
+    {
+      key: "sitelang",
+      label: "└ 시트 언어 검수",
+      title: `[${productCode}] 시트 언어 검수`,
+      indent: 1,
+      isParent: false,
+      parentKey: "open",
+      // 웨이디엔은 시트 언어 검수 없음; 미리보기에서 비활성 표시
+      available: !openContext.isYdn,
+      enabled: !openContext.isYdn,
+      unavailableReason: openContext.isYdn ? "웨이디엔 오픈에는 해당 없음" : undefined
+    },
+    {
+      key: "adminreg",
+      label: openContext.isYdn ? "└ YDN 어드민 등록·검수" : "└ 어드민 상품 등록",
+      title: openContext.isYdn
+        ? `[${productCode}] 웨이디엔 어드민 상품 등록 및 검수`
+        : `[${productCode}] 어드민 상품 등록`,
+      indent: 1,
+      isParent: false,
+      parentKey: "open",
+      available: true,
+      enabled: true
     }
   ];
 

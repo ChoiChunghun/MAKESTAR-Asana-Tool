@@ -9,12 +9,15 @@ import {
   TASK_TYPE_NAME_VMD
 } from "@/lib/parser/constants";
 import {
+  buildAdminRegDescription,
   buildBenefitDescription,
   buildOpenDescription,
   buildPhotocardDescription,
+  buildSiteLangDescription,
   buildSnsOpenDescription,
   buildUpdateDescription,
-  buildVmdDescription
+  buildVmdDescription,
+  buildYdnAdminRegDescription
 } from "@/lib/parser/descriptions";
 import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline";
 import { resolveVmdSubName } from "@/lib/parser/parseOpenContext";
@@ -313,6 +316,61 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
     await safeSetEventField(designGid, eventLabels, ctx);
     record(ctx, "opendesign", designGid, designName);
   }
+
+  // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생 모드 제외) ─────────────────
+  if (!isDerivative) {
+    const isYdn = openContext.isYdn;
+
+    // 시트 언어 검수 (메이크스타 전용, YDN 제외)
+    if (!isYdn && isEnabled(rowMap, "sitelang")) {
+      const siteLangName = title(rowMap, "sitelang", `[${summary.productCode}] 시트 언어 검수`);
+      const siteLangPayload: AsanaTaskPayload = {
+        name: siteLangName,
+        parent: openGid,
+        html_notes: buildSiteLangDescription()
+        // 태스크 구분 없음 (상품 등록 workflow 담당자가 처리)
+      };
+      applyDue(siteLangPayload, daysFromNow(3));
+      applyFollowers(siteLangPayload, followerGids);
+      const siteLangGid = await createTask(siteLangPayload, token);
+      record(ctx, "sitelang", siteLangGid, siteLangName);
+
+      // 언어별 하위 태스크 (자동 생성, 별도 체크박스 없음)
+      const langSubTasks = [
+        `[${summary.productCode}] 영어 시트 검수`,
+        `[${summary.productCode}] 중국어(간체) 시트 검수`,
+        `[${summary.productCode}] 일본어 시트 검수`
+      ];
+      for (const langName of langSubTasks) {
+        const langPayload: AsanaTaskPayload = {
+          name: langName,
+          parent: siteLangGid
+        };
+        applyFollowers(langPayload, followerGids);
+        await createTask(langPayload, token);
+      }
+    }
+
+    // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
+    if (isEnabled(rowMap, "adminreg")) {
+      const adminRegName = title(
+        rowMap, "adminreg",
+        isYdn
+          ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
+          : `[${summary.productCode}] 어드민 상품 등록`
+      );
+      const adminRegPayload: AsanaTaskPayload = {
+        name: adminRegName,
+        parent: openGid,
+        html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
+        custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+      };
+      applyDue(adminRegPayload, daysFromNow(7));
+      applyFollowers(adminRegPayload, followerGids);
+      const adminRegGid = await createTask(adminRegPayload, token);
+      record(ctx, "adminreg", adminRegGid, adminRegName);
+    }
+  }
 }
 
 async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
@@ -422,4 +480,11 @@ function record(ctx: TaskCreateContext, key: string, gid: string, name: string):
     name,
     url: `https://app.asana.com/0/${ctx.projectGid}/${gid}`
   });
+}
+
+/** 오늘(KST 기준) + N일 후 due_on 반환 */
+function daysFromNow(days: number): DueFields {
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const future = new Date(kstNow.getTime() + days * 24 * 60 * 60 * 1000);
+  return { due_on: future.toISOString().slice(0, 10) };
 }

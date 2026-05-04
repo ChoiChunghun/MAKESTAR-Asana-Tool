@@ -52,6 +52,8 @@ export type OpenContext = {
   snsItems: string[];
   eventSourceText: string;
   hasPromoEvent: boolean;
+  /** 웨이디엔(YDN) 플랫폼 오픈 여부 — true이면 시트 언어 검수 없이 YDN 어드민 등록·검수 생성 */
+  isYdn: boolean;
 };
 
 export type DueFields = {
@@ -69,7 +71,11 @@ export type TaskKey =
   | "up"
   | "upsub"
   | "open"
-  | "opendesign";
+  | "opendesign"
+  /** 시트 언어 검수 (메이크스타 오픈 전용, SNS·YDN 제외) */
+  | "sitelang"
+  /** 어드민 상품 등록 (메이크스타) 또는 YDN 어드민 등록·검수 */
+  | "adminreg";
 
 export type PreviewTaskRow = {
   key: TaskKey;
