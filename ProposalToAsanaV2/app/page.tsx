@@ -405,7 +405,7 @@ export default function HomePage() {
               MAKESTAR 태스크 머신
             </button>
             <div className="flex items-center gap-1">
-              <span className="text-ms-gold text-xs font-semibold tracking-wide">v0.88</span>
+              <span className="text-ms-gold text-xs font-semibold tracking-wide">v0.88.3</span>
               <span className="text-ms-faint text-xs">·</span>
               <span className="text-ms-muted text-xs">Beta</span>
             </div>
