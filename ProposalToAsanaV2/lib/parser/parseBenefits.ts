@@ -56,13 +56,15 @@ const SENTENCE_SPLITTER = /(?:와\s|과\s|이고\s|이며\s|담긴\s|들어간\s
 function extractBenefitItem(cell: string, keyword: string): ParsedItem | null {
   const normalized = cell.replace(/\s+/g, " ").trim();
   const ek = escapeRegExp(keyword);
-  const countPattern = new RegExp(`${ek}[^\\d]{0,10}(\\d+)\\s*(?:매|종|개)|(.{0,30}${ek})\\s*(\\d+)\\s*(?:매|종|개)`);
+  // 단위: 매/종/개/통(편지지)/세트(일회용 밴드 등) 포함
+  const UNIT = "(?:매|종|개|통|세트|SET)";
+  const countPattern = new RegExp(`${ek}[^\\d]{0,10}(\\d+)\\s*${UNIT}|(.{0,30}${ek})\\s*(\\d+)\\s*${UNIT}`);
 
   // 문장을 연결어로 분리해 keyword+count가 있는 세그먼트를 역순으로 탐색
   const segments = normalized.split(SENTENCE_SPLITTER).reverse();
   for (const seg of segments) {
     if (!seg.includes(keyword)) continue;
-    const match = seg.match(new RegExp(`(.{0,35}?${ek})\\s*(\\d+)\\s*(?:매|종|개)`));
+    const match = seg.match(new RegExp(`(.{0,35}?${ek})\\s*(\\d+)\\s*${UNIT}`));
     if (!match) continue;
 
     const name = cleanName(match[1]);
@@ -71,7 +73,7 @@ function extractBenefitItem(cell: string, keyword: string): ParsedItem | null {
   }
 
   // fallback: 전체 문자열에서 시도 (세그먼트 분리 실패 시)
-  const fallback = normalized.match(new RegExp(`(.{0,80}?${ek})\\s*(\\d+)\\s*(?:매|종|개)`));
+  const fallback = normalized.match(new RegExp(`(.{0,80}?${ek})\\s*(\\d+)\\s*${UNIT}`));
   if (!fallback) return null;
 
   const name = cleanName(fallback[1]);
