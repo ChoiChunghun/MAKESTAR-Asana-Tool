@@ -426,8 +426,8 @@ export default function HomePage() {
             >
               Asana 토큰 발급 방법
             </a>
-            <a href="/admin" className="text-ms-muted hover:text-white text-sm transition-colors">
-              관리자
+            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-white text-sm transition-colors">
+              문의하기
             </a>
           </div>
         </div>
@@ -650,13 +650,11 @@ export default function HomePage() {
             © 2026 MAKESTAR Inc. All Rights Reserved.
           </p>
           <a
-            href="https://makestar.slack.com/team/UP1P34AUB"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/admin"
             className="text-xs"
             style={{ color: "#E6B800" }}
           >
-            문의하기
+            관리자
           </a>
         </div>
       </footer>
