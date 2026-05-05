@@ -34,6 +34,13 @@ export async function POST(request: Request) {
 
       // 브라우저에서 추출한 텍스트 직접 수신 (대용량 docx 우회)
       if (body.rawText) {
+        // rawText 크기 제한: 1MB (DoS 방지)
+        if (body.rawText.length > 1_048_576) {
+          return NextResponse.json(
+            { message: "문서 텍스트가 너무 큽니다. 1MB 이하 문서만 처리할 수 있습니다." },
+            { status: 413 }
+          );
+        }
         if (!body.rawText.trim()) {
           return NextResponse.json(
             { message: "문서에서 텍스트를 추출하지 못했습니다." },
@@ -47,6 +54,14 @@ export async function POST(request: Request) {
 
       if (!body.googleDocUrl) {
         return NextResponse.json({ message: "Google Doc URL을 입력해주세요." }, { status: 400 });
+      }
+      // Google Doc URL 형식 검증
+      const isValidGoogleDocUrl = /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/.test(body.googleDocUrl);
+      if (!isValidGoogleDocUrl) {
+        return NextResponse.json(
+          { message: "올바른 Google Doc URL을 입력해주세요. (https://docs.google.com/...)" },
+          { status: 400 }
+        );
       }
       const text = await extractTextFromGoogleDoc(body.googleDocUrl);
       if (!text.trim()) {

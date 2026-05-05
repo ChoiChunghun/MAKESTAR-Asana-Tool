@@ -72,6 +72,8 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
       ) : (
         <div className="space-y-3">
           <div className="bg-ms-subtle border border-ms-border rounded-lg px-3 py-2.5 text-xs text-ms-muted leading-relaxed">
+            <span className="text-ms-accent font-medium">[보안 : Beta에서 제외]</span>
+            {"  "}
             <span className="text-white font-medium">공유 설정 필수</span>
             {"  "}문서 우측 상단 <strong className="text-ms-text">공유</strong> →{" "}
             <strong className="text-ms-text">링크가 있는 모든 사용자</strong> → <strong className="text-ms-text">뷰어</strong>

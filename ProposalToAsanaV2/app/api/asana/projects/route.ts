@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAvailableProjects } from "@/lib/asana/projects";
-import { toUserFriendlyAsanaError } from "@/lib/asana/errors";
+import { toApiResponse } from "@/lib/asana/errors";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const projects = await getAvailableProjects(token);
     return NextResponse.json({ projects });
   } catch (error) {
-    return NextResponse.json({ message: toUserFriendlyAsanaError(error) }, { status: 500 });
+    const { message, status } = toApiResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }

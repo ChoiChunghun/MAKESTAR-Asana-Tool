@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { asanaRequest, validateToken } from "@/lib/asana/client";
+import { toApiResponse } from "@/lib/asana/errors";
 
 export const runtime = "nodejs";
 
@@ -50,12 +51,13 @@ export async function POST(request: Request) {
     }
 
     if (errors.length) {
-      return NextResponse.json({ message: errors.join("\n") }, { status: 500 });
+      // 일부 항목 처리 실패 (삭제된 태스크 등) → 422 Unprocessable
+      return NextResponse.json({ message: errors.join("\n") }, { status: 422 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "이름 변경 중 오류가 발생했습니다.";
-    return NextResponse.json({ message: msg }, { status: 500 });
+    const { message, status } = toApiResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }

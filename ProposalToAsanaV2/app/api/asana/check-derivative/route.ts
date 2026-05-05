@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, validateToken } from "@/lib/asana/client";
 import { findSectionByProductCode } from "@/lib/asana/sections";
 import { isValidGid } from "@/lib/parser/utils";
+import { toApiResponse } from "@/lib/asana/errors";
 
 export const runtime = "nodejs";
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       sectionName: section?.name ?? null
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "파생 모드 확인 중 오류";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { message, status } = toApiResponse(e);
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { AsanaCreateTasksRequest } from "@/types/asana";
 import { createTasksFromPreview } from "@/lib/asana/tasks";
-import { toUserFriendlyAsanaError } from "@/lib/asana/errors";
+import { toApiResponse } from "@/lib/asana/errors";
 import { checkRateLimit, tokenToIdentifier } from "@/lib/ratelimit";
 import { pushActivityLog } from "@/lib/activityLog";
 
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ message: toUserFriendlyAsanaError(error) }, { status: 500 });
+    const { message, status } = toApiResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }

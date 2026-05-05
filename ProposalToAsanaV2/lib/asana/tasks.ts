@@ -55,6 +55,7 @@ type TaskCreateContext = {
   topLevelTaskGids: string[];   // 섹션 최상단 정렬용 (생성 순서대로 push)
   eventLabels: OpenEventLabel[]; // 이벤트 구분 커스텀 필드에 사용
   followerGids: string[];        // 협업 참여자 — 모든 태스크에 일괄 적용
+  productRegFollowerGids: string[]; // 상품 등록 전용 협업 참여자 (시트 언어 검수·어드민 상품 등록)
   eventFieldErrors: string[];    // 이벤트 구분 필드 설정 실패 수집 (태스크 생성은 계속)
   isDerivative: boolean;         // 파생 모드 여부
 };
@@ -102,6 +103,7 @@ export async function createTasksFromPreview(
       : isValidGid(request.designerGid ?? "") ? (request.designerGid ?? "") : requesterGid;
 
   const followerGids = (request.followerGids || []).filter(isValidGid);
+  const productRegFollowerGids = (request.productRegFollowerGids || []).filter(isValidGid);
 
   // ── 파생 모드: 행 타이틀에 접미사 적용 + 오픈 → SNS 오픈 ─────────────────
   let effectiveRows = request.rows;
@@ -139,6 +141,7 @@ export async function createTasksFromPreview(
     topLevelTaskGids: [],
     eventLabels,
     followerGids,
+    productRegFollowerGids,
     eventFieldErrors: [],
     isDerivative
   };
@@ -266,7 +269,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
 }
 
 async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
-  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids, isDerivative } = ctx;
+  const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids, productRegFollowerGids, isDerivative } = ctx;
   const { summary, openContext } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "open");
 
@@ -300,6 +303,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   record(ctx, "open", openGid, openName);
 
   // ── 오픈 디자인 서브: 태스크 구분 + 이벤트 구분 ─────────────────────────
+  // followerGids 미적용: 담당자(designerGid)가 이미 assignee이므로 중복 추가 불필요
   if (isEnabled(rowMap, "opendesign")) {
     const designPayload: AsanaTaskPayload = {
       name: designName,
@@ -311,7 +315,6 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
     };
     applyDue(designPayload, dueFields);
-    applyFollowers(designPayload, followerGids);
     const designGid = await createTask(designPayload, token);
     await safeSetEventField(designGid, eventLabels, ctx);
     record(ctx, "opendesign", designGid, designName);
@@ -320,6 +323,8 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생 모드 제외) ─────────────────
   if (!isDerivative) {
     const isYdn = openContext.isYdn;
+    // 상품 등록 태스크 전용 follower = 전체 follower + 상품 등록 전담 follower 합산
+    const regFollowers = [...new Set([...followerGids, ...productRegFollowerGids])];
 
     // 시트 언어 검수 (메이크스타 전용, YDN 제외)
     if (!isYdn && isEnabled(rowMap, "sitelang")) {
@@ -330,8 +335,8 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
         html_notes: buildSiteLangDescription()
         // 태스크 구분 없음 (상품 등록 workflow 담당자가 처리)
       };
-      applyDue(siteLangPayload, daysFromNow(3));
-      applyFollowers(siteLangPayload, followerGids);
+      applyDue(siteLangPayload, dueFields);   // 오픈 마감일과 동일
+      applyFollowers(siteLangPayload, regFollowers);
       const siteLangGid = await createTask(siteLangPayload, token);
       record(ctx, "sitelang", siteLangGid, siteLangName);
 
@@ -346,7 +351,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
           name: langName,
           parent: siteLangGid
         };
-        applyFollowers(langPayload, followerGids);
+        applyFollowers(langPayload, regFollowers);
         await createTask(langPayload, token);
       }
     }
@@ -365,8 +370,8 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
         html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
         custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
       };
-      applyDue(adminRegPayload, daysFromNow(7));
-      applyFollowers(adminRegPayload, followerGids);
+      applyDue(adminRegPayload, dueFields);   // 오픈 마감일과 동일
+      applyFollowers(adminRegPayload, regFollowers);
       const adminRegGid = await createTask(adminRegPayload, token);
       record(ctx, "adminreg", adminRegGid, adminRegName);
     }
@@ -417,6 +422,7 @@ async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
   const winnerName = title(rowMap, "winner", `[${summary.productCode}] 당첨자 선정`);
 
   // ── 당첨자 선정: 상태(진행) + 태스크 구분(기타) ─────────────────────────
+  // followerGids 미적용: 스케줄링 목적 태스크이므로 협업 참여자 불필요
   const payload: AsanaTaskPayload = {
     name: winnerName,
     projects: [projectGid],
@@ -425,7 +431,6 @@ async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
     custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_ETC, token)
   };
   applyDue(payload, dueFields);
-  applyFollowers(payload, followerGids);
   const gid = await createTask(payload, token);
   ctx.topLevelTaskGids.push(gid);
   record(ctx, "winner", gid, winnerName);
@@ -482,9 +487,3 @@ function record(ctx: TaskCreateContext, key: string, gid: string, name: string):
   });
 }
 
-/** 오늘(KST 기준) + N일 후 due_on 반환 */
-function daysFromNow(days: number): DueFields {
-  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const future = new Date(kstNow.getTime() + days * 24 * 60 * 60 * 1000);
-  return { due_on: future.toISOString().slice(0, 10) };
-}

@@ -20,6 +20,8 @@ type AdminConfig = {
   vmdItemCount: number;
   designerGid: string;
   followerGids: string[];
+  /** 시트 언어 검수 · 어드민 상품 등록 태스크 전용 협업 참여자 */
+  productRegFollowerGids: string[];
   artistDesignerRules: ArtistDesignerRule[];
   customFieldGids: {
     statusField: string;
@@ -55,6 +57,7 @@ const DEFAULT_CONFIG: AdminConfig = {
   vmdItemCount: 4,
   designerGid: "",
   followerGids: [],
+  productRegFollowerGids: ["1208607027791750"],
   artistDesignerRules: [],
   customFieldGids: {
     statusField: "1207665965030077",
@@ -101,6 +104,9 @@ export default function AdminPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyClearing, setHistoryClearing] = useState(false);
+
+  // ── 서버 저장 ────────────────────────────────────────────────────────────
+  const [serverSaveMsg, setServerSaveMsg] = useState("");
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -220,6 +226,26 @@ export default function AdminPage() {
       setConfig(DEFAULT_CONFIG);
       localStorage.removeItem(ADMIN_CONFIG_KEY);
     }
+  }
+
+  async function saveToServer() {
+    setServerSaveMsg("");
+    try {
+      const res = await fetch("/api/admin/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password
+        },
+        body: JSON.stringify(config)
+      });
+      const data = await res.json() as { ok?: boolean; message?: string };
+      if (!res.ok) throw new Error(data.message || "서버 저장 실패");
+      setServerSaveMsg("서버에 저장되었습니다.");
+    } catch (e) {
+      setServerSaveMsg(e instanceof Error ? e.message : "서버 저장 중 오류가 발생했습니다.");
+    }
+    setTimeout(() => setServerSaveMsg(""), 3000);
   }
 
   if (!isAuth) {
@@ -357,6 +383,29 @@ export default function AdminPage() {
                 className="ms-input font-mono text-xs resize-none"
               />
               <p className="ms-hint">Asana 프로필 URL(app.asana.com/0/~GID)에서 GID를 확인하세요.</p>
+            </div>
+
+            {/* 상품 등록 담당자 (시트 언어 검수 · 어드민 상품 등록 전용) */}
+            <div className="card">
+              <h3 className="text-base font-semibold text-white mb-1">상품 등록 담당자 (Followers)</h3>
+              <p className="ms-hint mb-3">
+                시트 언어 검수 · 어드민 상품 등록 태스크 및 하위 태스크에만 추가되는 협업 참여자입니다.
+                위의 <em>협업 참여자</em>와 합산 적용됩니다. GID를 쉼표 또는 줄바꿈으로 구분해 입력하세요.
+              </p>
+              <textarea
+                rows={3}
+                value={config.productRegFollowerGids.join("\n")}
+                onChange={(e) => {
+                  const gids = e.target.value
+                    .split(/[\n,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  setConfig({ ...config, productRegFollowerGids: gids });
+                }}
+                placeholder={"123456789012345"}
+                className="ms-input font-mono text-xs resize-none"
+              />
+              <p className="ms-hint">예: 신예선/미주유럽사업팀 등 상품 등록 업무 담당자 GID</p>
             </div>
 
             {/* 아티스트별 하위 태스크 담당자 */}
@@ -669,14 +718,22 @@ export default function AdminPage() {
         )}
 
         {activeTab !== "history" && (
-        <div className="flex items-center gap-3 mt-8">
+        <div className="flex items-center gap-3 mt-8 flex-wrap">
           <button type="button" onClick={saveConfig} className="btn-accent px-6 py-2.5">
             저장
+          </button>
+          <button type="button" onClick={saveToServer} className="btn px-6 py-2.5 border border-yellow-600 text-yellow-400 hover:bg-yellow-600/10">
+            서버에 저장
           </button>
           <button type="button" onClick={resetConfig} className="btn px-6 py-2.5">
             기본값으로 초기화
           </button>
           {savedMsg && <span className="dot-green text-sm">{savedMsg}</span>}
+          {serverSaveMsg && (
+            <span className={`text-sm ${serverSaveMsg.includes("저장되었습니다") ? "text-yellow-400" : "text-red-400"}`}>
+              {serverSaveMsg}
+            </span>
+          )}
         </div>
         )}
       </main>

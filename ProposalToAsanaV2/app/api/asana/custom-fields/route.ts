@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { asanaRequest, validateToken } from "@/lib/asana/client";
+import { toApiResponse } from "@/lib/asana/errors";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ fields });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "커스텀 필드 조회 중 오류가 발생했습니다.";
-    return NextResponse.json({ message: msg }, { status: 500 });
+    const { message, status } = toApiResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }

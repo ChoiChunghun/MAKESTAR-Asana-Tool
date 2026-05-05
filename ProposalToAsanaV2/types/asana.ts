@@ -20,6 +20,8 @@ export type AsanaCreateTasksRequest = {
   rows: PreviewTaskRow[];
   designerGid?: string;
   followerGids?: string[];
+  /** 시트 언어 검수 · 어드민 상품 등록 태스크 전용 협업 참여자 GID 목록 */
+  productRegFollowerGids?: string[];
   artistDesignerMap?: { artistName: string; designerGid: string }[];
   /** 설정 시 파생 모드로 동작 */
   derivative?: DerivativeMode;

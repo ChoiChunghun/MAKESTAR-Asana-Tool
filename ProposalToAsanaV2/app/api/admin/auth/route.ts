@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     if (!password || password.trim() === "") {
       return NextResponse.json({ ok: false, message: "비밀번호를 입력해주세요." }, { status: 400 });
     }
+    // 과도하게 긴 입력 차단 (DoS 방지)
+    if (password.length > 256) {
+      return NextResponse.json({ ok: false, message: "비밀번호가 올바르지 않습니다." }, { status: 401 });
+    }
 
     // 타이밍 공격 방지: 길이 노출 없이 안전 비교
     const ok = timingSafeEqual(password, adminPassword);

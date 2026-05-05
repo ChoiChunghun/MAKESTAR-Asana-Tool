@@ -1,5 +1,21 @@
 import { AsanaApiError } from "./client";
 
+/**
+ * Asana 오류를 HTTP 응답에 맞는 { message, status } 쌍으로 변환합니다.
+ * - Asana가 4xx를 반환한 경우 해당 상태코드를 그대로 전달
+ * - Asana가 5xx를 반환한 경우 502 (Bad Gateway)로 포워딩
+ * - 그 외 예상치 못한 오류 → 500
+ */
+export function toApiResponse(error: unknown): { message: string; status: number } {
+  const message = toUserFriendlyAsanaError(error);
+  if (error instanceof AsanaApiError) {
+    const s = error.status;
+    const status = s >= 400 && s < 500 ? s : 502;
+    return { message, status };
+  }
+  return { message, status: 500 };
+}
+
 export function toUserFriendlyAsanaError(error: unknown): string {
   if (error instanceof AsanaApiError) {
     switch (error.status) {

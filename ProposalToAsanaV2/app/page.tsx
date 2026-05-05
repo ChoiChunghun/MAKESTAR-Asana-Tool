@@ -97,6 +97,19 @@ export default function HomePage() {
     if (hist) {
       try { setHistory(JSON.parse(hist)); } catch { localStorage.removeItem(HISTORY_KEY); }
     }
+    // 서버에 저장된 관리자 설정을 불러와 로컬 디폴트로 병합
+    fetch("/api/admin/config")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { config?: Record<string, unknown> } | null) => {
+        if (data?.config) {
+          const local = localStorage.getItem(ADMIN_CONFIG_KEY);
+          const localObj = local ? JSON.parse(local) : {};
+          // 서버 설정을 기본, 로컬 설정이 덮어씀 (사용자 커스텀 우선)
+          const merged = { ...data.config, ...localObj };
+          localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(merged));
+        }
+      })
+      .catch(() => { /* KV 미설정 환경에서는 무시 */ });
   }, []);
 
   useEffect(() => {
@@ -182,6 +195,13 @@ export default function HomePage() {
   }
 
   async function handleGoogleDocUrl(url: string) {
+    // URL 형식을 먼저 검증 — 유효하지 않으면 step 변경 없이 오류만 표시
+    const isValidGoogleDocUrl = /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/.test(url);
+    if (!isValidGoogleDocUrl) {
+      setErrorMsg("올바른 Google Doc URL을 입력해주세요. (https://docs.google.com/...)");
+      return;
+    }
+
     setSelectedFile("Google Doc");
     setStep("parsing");
     setErrorMsg("");
@@ -276,9 +296,10 @@ export default function HomePage() {
               return {
                 designerGid: cfg.designerGid || "",
                 followerGids: cfg.followerGids || [],
+                productRegFollowerGids: cfg.productRegFollowerGids || [],
                 artistDesignerMap: cfg.artistDesignerRules || []
               };
-            } catch { return { designerGid: "", followerGids: [], artistDesignerMap: [] }; }
+            } catch { return { designerGid: "", followerGids: [], productRegFollowerGids: [], artistDesignerMap: [] }; }
           })(),
           ...(derivativeInfo
             ? { derivative: { sectionGid: derivativeInfo.sectionGid, suffix: derivativeInfo.suffix } }
@@ -444,7 +465,9 @@ export default function HomePage() {
                 <div className="text-center py-6">
                   <h2 className="text-2xl font-bold text-white mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
-                    PDF, Word, <s>Google Doc</s>을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
+                    PDF, Word, <s>Google Doc</s>{" "}
+                    <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
+                    을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />
                     <span className="text-ms-faint text-xs">* Asana 토큰 입력 후 사용 가능</span>
                   </p>
@@ -622,10 +645,19 @@ export default function HomePage() {
         )}
       </main>
       <footer className="border-t border-ms-border/20 mt-auto">
-        <div className="max-w-4xl mx-auto px-4 py-5 text-center">
+        <div className="max-w-4xl mx-auto px-4 py-5 flex items-center justify-center gap-4">
           <p className="text-ms-faint text-xs">
             © 2026 MAKESTAR Inc. All Rights Reserved.
           </p>
+          <a
+            href="https://makestar.slack.com/team/UP1P34AUB"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs"
+            style={{ color: "#E6B800" }}
+          >
+            문의하기
+          </a>
         </div>
       </footer>
     </div>
