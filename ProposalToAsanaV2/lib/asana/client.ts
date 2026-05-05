@@ -48,7 +48,11 @@ export async function asanaRequest<T>(
 
 export function validateToken(token: string): void {
   if (!token || token.trim().length < 10) {
-    throw new Error("Asana 토큰이 유효하지 않습니다. 설정에서 Personal Access Token을 입력해주세요.");
+    throw new AsanaApiError(
+      "Asana 토큰이 유효하지 않습니다. 설정에서 Personal Access Token을 입력해주세요.",
+      401,
+      "/validate"
+    );
   }
 }
 

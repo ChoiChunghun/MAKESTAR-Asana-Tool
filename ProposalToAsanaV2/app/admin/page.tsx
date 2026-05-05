@@ -240,7 +240,14 @@ export default function AdminPage() {
         body: JSON.stringify(config)
       });
       const data = await res.json() as { ok?: boolean; message?: string };
-      if (!res.ok) throw new Error(data.message || "서버 저장 실패");
+      if (!res.ok) {
+        const rawMsg = data.message || "";
+        const koreanMsg =
+          res.status === 401 ? "비밀번호가 올바르지 않습니다." :
+          res.status === 503 ? "서버 설정이 완료되지 않았습니다. (KV 미설정)" :
+          rawMsg || "서버 저장 실패";
+        throw new Error(koreanMsg);
+      }
       setServerSaveMsg("서버에 저장되었습니다.");
     } catch (e) {
       setServerSaveMsg(e instanceof Error ? e.message : "서버 저장 중 오류가 발생했습니다.");
