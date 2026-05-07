@@ -32,3 +32,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code
+.claude/
+
+# 로컬 개발 자료 (테스트 파일, 백업, 파싱 작업 디렉토리)
+자료/

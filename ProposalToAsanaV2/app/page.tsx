@@ -427,7 +427,7 @@ export default function HomePage() {
               Asana 토큰 발급 방법
             </a>
             <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-white text-sm transition-colors">
-              문의하기
+              문의, 제보하기
             </a>
           </div>
         </div>
@@ -465,7 +465,7 @@ export default function HomePage() {
                 <div className="text-center py-6">
                   <h2 className="text-2xl font-bold text-white mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
-                    PDF, Word, <s>Google Doc</s>{" "}
+                    Word, PDF, <s>Google Doc</s>{" "}
                     <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
                     을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />

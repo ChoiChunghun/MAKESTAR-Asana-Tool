@@ -2,3 +2,17 @@ node_modules/
 data/
 outputs/
 playwright-report/
+
+# 관련 없는 로컬 프로젝트
+ProposalToAsana/
+SheetsToAsanan/
+CropMachine/
+CollageMachine/
+MAKESTAR-Collage/
+ProposalToFigma/
+figma-pdf-page-sync/
+99_Sample/
+scripts/
+pairs/
+package.json
+package-lock.json

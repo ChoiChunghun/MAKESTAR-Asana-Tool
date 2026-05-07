@@ -67,7 +67,7 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
           />
           <div className="text-3xl mb-3">📄</div>
           <p className="text-white font-medium mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
-          <p className="text-ms-muted text-sm">PDF 또는 Word (.docx) 파일 지원</p>
+          <p className="text-ms-muted text-sm">Word (.docx) 또는 PDF 파일 지원</p>
         </button>
       ) : (
         <div className="space-y-3">
