@@ -6,9 +6,9 @@
   :root {
     --accent:       #ff4d89;
     --accent-hover: #e5195e;
-    --border:       #2d353d;
-    --text:         #fcfdfd;
-    --muted:        #6d7f92;
+    --border:       #d4d9de;
+    --text:         #111417;
+    --muted:        #4c5a66;
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -16,8 +16,8 @@
   html, body {
     height: 100%;
     margin: 0;
-    background: #111417;
-    color: #fcfdfd;
+    background: #fcfdfd;
+    color: #111417;
     font-family: "Pretendard JP Variable", "Pretendard", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.3px;
@@ -31,16 +31,16 @@
   }
 
   select option {
-    background: #1f242a;
-    color: #fcfdfd;
+    background: #ffffff;
+    color: #111417;
   }
 }
 
 @layer components {
   /* ── Panel / Card ── */
   .card {
-    background: #1f242a;
-    border: 1px solid #2d353d;
+    background: #ffffff;
+    border: 1px solid #d4d9de;
     border-radius: 14px;
     padding: 14px;
   }
@@ -48,24 +48,25 @@
   /* ── Inputs ── */
   .ms-input {
     width: 100%;
-    background: #181d22;
-    border: 1px solid #2d353d;
+    background: #ffffff;
+    border: 1px solid #d4d9de;
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 14px;
-    color: #fcfdfd;
+    color: #111417;
     outline: none;
     transition: border-color 0.15s;
   }
   .ms-input:focus {
-    border-color: #4c5a66;
+    border-color: #8a9aaa;
   }
   .ms-input::placeholder {
-    color: #4c5a66;
+    color: #8a9aaa;
   }
   .ms-input:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+    background: #f2f4f6;
   }
 
   /* ── Label ── */
@@ -74,15 +75,15 @@
     justify-content: space-between;
     align-items: center;
     font-size: 12px;
-    color: #6d7f92;
+    color: #4c5a66;
     margin-bottom: 6px;
   }
 
   /* ── Buttons ── */
   .btn {
-    border: 1px solid #2d353d;
-    background: #252c34;
-    color: #fcfdfd;
+    border: 1px solid #d4d9de;
+    background: #f2f4f6;
+    color: #111417;
     padding: 10px 14px;
     border-radius: 12px;
     font-size: 14px;
@@ -92,7 +93,7 @@
     white-space: nowrap;
   }
   .btn:hover:not(:disabled) {
-    background: #2d353d;
+    background: #e8ebed;
   }
   .btn:disabled {
     opacity: 0.4;
@@ -122,7 +123,7 @@
   /* ── Hint text ── */
   .ms-hint {
     font-size: 12px;
-    color: #6d7f92;
+    color: #4c5a66;
     line-height: 1.4;
     margin-top: 6px;
   }
@@ -131,7 +132,7 @@
   .ms-section-title {
     font-size: 12px;
     font-weight: 600;
-    color: #6d7f92;
+    color: #4c5a66;
     letter-spacing: 0.05em;
     text-transform: uppercase;
     margin-bottom: 10px;
@@ -145,21 +146,21 @@
     padding: 3px 9px;
     border-radius: 999px;
     font-size: 12px;
-    border: 1px solid #2d353d;
-    background: #252c34;
-    color: #b8c5d1;
+    border: 1px solid #d4d9de;
+    background: #f2f4f6;
+    color: #3a4550;
   }
   .ms-tag-accent {
-    background: rgba(255, 77, 137, 0.15);
-    border-color: rgba(255, 77, 137, 0.35);
-    color: #ff4d89;
+    background: rgba(255, 77, 137, 0.1);
+    border-color: rgba(255, 77, 137, 0.3);
+    color: #d4006a;
   }
 
   /* ── Spinner ── */
   .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid #2d353d;
+    border: 2px solid #d4d9de;
     border-top-color: #ff4d89;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
@@ -168,8 +169,8 @@
     display: inline-block;
     width: 14px;
     height: 14px;
-    border: 2px solid #4c5a66;
-    border-top-color: #fcfdfd;
+    border: 2px solid #d4d9de;
+    border-top-color: #111417;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
@@ -179,12 +180,12 @@
   /* ── Divider ── */
   .ms-divider {
     border: none;
-    border-top: 1px solid #2d353d;
+    border-top: 1px solid #d4d9de;
     margin: 14px 0;
   }
 
   /* ── Dot status ── */
-  .dot-green  { color: #4ade80; }
-  .dot-yellow { color: #FFBF00; }
-  .dot-red    { color: #ff5555; }
+  .dot-green  { color: #16a34a; }
+  .dot-yellow { color: #ca8a04; }
+  .dot-red    { color: #dc2626; }
 }

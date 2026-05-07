@@ -85,7 +85,7 @@ export function ParseSummary({ summary }: Props) {
         {rows.map(({ label, value }) => (
           <div key={label} className="flex gap-3 py-2 border-b border-ms-border/50 last:border-0">
             <span className="text-ms-muted text-sm w-28 shrink-0">{label}</span>
-            <span className="text-white text-sm font-medium">{value}</span>
+            <span className="text-ms-text text-sm font-medium">{value}</span>
           </div>
         ))}
       </div>

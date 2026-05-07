@@ -90,7 +90,7 @@ export function TaskPreviewTable({ rows, sectionName, onRowsChange, onSectionNam
                       value={row.title}
                       onChange={(e) => updateTitle(row.key, e.target.value)}
                       disabled={!row.enabled}
-                      className="w-full px-2 py-1 rounded-lg bg-ms-bg border border-ms-border/50 text-white text-xs focus:outline-none focus:border-ms-accent/70 disabled:opacity-50"
+                      className="w-full px-2 py-1 rounded-lg bg-ms-bg border border-ms-border/50 text-ms-text text-xs focus:outline-none focus:border-ms-accent/70 disabled:opacity-50"
                     />
                   ) : (
                     <span className="text-ms-faint text-xs italic">{row.unavailableReason}</span>

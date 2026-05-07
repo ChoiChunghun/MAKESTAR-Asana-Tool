@@ -30,8 +30,8 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
               tab === t
-                ? "bg-ms-accent text-white"
-                : "bg-ms-subtle text-ms-muted hover:text-white"
+                ? "bg-ms-accent text-ms-text"
+                : "bg-ms-subtle text-ms-muted hover:text-ms-text"
             }`}
           >
             {t === "file" ? "파일 업로드" : "Google Doc"}
@@ -66,7 +66,7 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
             className="hidden"
           />
           <div className="text-3xl mb-3">📄</div>
-          <p className="text-white font-medium mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
+          <p className="text-ms-text font-medium mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
           <p className="text-ms-muted text-sm">Word (.docx) 또는 PDF 파일 지원</p>
         </button>
       ) : (
@@ -74,7 +74,7 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
           <div className="bg-ms-subtle border border-ms-border rounded-lg px-3 py-2.5 text-xs text-ms-muted leading-relaxed">
             <span className="text-ms-accent font-medium">[보안 : Beta에서 제외]</span>
             {"  "}
-            <span className="text-white font-medium">공유 설정 필수</span>
+            <span className="text-ms-text font-medium">공유 설정 필수</span>
             {"  "}문서 우측 상단 <strong className="text-ms-text">공유</strong> →{" "}
             <strong className="text-ms-text">링크가 있는 모든 사용자</strong> → <strong className="text-ms-text">뷰어</strong>
           </div>

@@ -17,7 +17,7 @@ export default function Error({
     <div className="min-h-screen bg-ms-bg text-ms-text flex items-center justify-center">
       <div className="card w-full max-w-md text-center py-12">
         <div className="text-4xl mb-4">⚠️</div>
-        <h2 className="text-white font-bold text-xl mb-2">오류가 발생했습니다</h2>
+        <h2 className="text-ms-text font-bold text-xl mb-2">오류가 발생했습니다</h2>
         <p className="text-ms-muted text-sm mb-6 break-words">
           {error.message || "알 수 없는 오류입니다."}<br />
           디자인센터(최충훈)에게 문의하세요.

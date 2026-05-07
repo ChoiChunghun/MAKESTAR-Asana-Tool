@@ -38,8 +38,8 @@ export function TokenInput({ token, onTokenChange }: Props) {
     <div className="relative">
       <div className="absolute right-0 top-8 z-50 w-80 card shadow-xl shadow-black/50 border border-ms-border">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-white">Asana 토큰 설정</h3>
-          <button type="button" onClick={() => setOpen(false)} className="text-ms-muted hover:text-white text-lg leading-none">×</button>
+          <h3 className="text-sm font-semibold text-ms-text">Asana 토큰 설정</h3>
+          <button type="button" onClick={() => setOpen(false)} className="text-ms-muted hover:text-ms-text text-lg leading-none">×</button>
         </div>
         <p className="text-ms-muted text-xs mb-3">
           Asana Personal Access Token을 입력하세요.{" "}
@@ -57,7 +57,7 @@ export function TokenInput({ token, onTokenChange }: Props) {
             autoFocus
             className="ms-input pr-12 font-mono text-xs"
           />
-          <button type="button" onClick={() => setShow((p) => !p)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ms-muted hover:text-white text-xs">
+          <button type="button" onClick={() => setShow((p) => !p)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ms-muted hover:text-ms-text text-xs">
             {show ? "숨김" : "표시"}
           </button>
         </div>

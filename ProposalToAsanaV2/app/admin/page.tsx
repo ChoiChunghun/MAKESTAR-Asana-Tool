@@ -260,8 +260,8 @@ export default function AdminPage() {
       <div className="min-h-screen bg-ms-bg flex items-center justify-center">
         <div className="card w-full max-w-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-ms-accent flex items-center justify-center text-sm font-bold text-white">M</div>
-            <h1 className="text-white font-bold">관리자 페이지</h1>
+            <div className="w-8 h-8 rounded-lg bg-ms-accent flex items-center justify-center text-sm font-bold text-ms-text">M</div>
+            <h1 className="text-ms-text font-bold">관리자 페이지</h1>
           </div>
           <input
             type="password"
@@ -275,7 +275,7 @@ export default function AdminPage() {
           <button type="button" onClick={handleLogin} className="btn-accent w-full py-2">
             로그인
           </button>
-          <a href="/" className="block text-center text-ms-muted hover:text-white text-sm mt-4">
+          <a href="/" className="block text-center text-ms-muted hover:text-ms-text text-sm mt-4">
             ← 메인으로 돌아가기
           </a>
         </div>
@@ -295,13 +295,13 @@ export default function AdminPage() {
       <header className="border-b border-ms-border bg-ms-panel">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-ms-accent flex items-center justify-center text-sm font-bold text-white">M</div>
+            <div className="w-8 h-8 rounded-lg bg-ms-accent flex items-center justify-center text-sm font-bold text-ms-text">M</div>
             <div>
-              <h1 className="text-white font-bold text-lg leading-none">관리자 설정</h1>
+              <h1 className="text-ms-text font-bold text-lg leading-none">관리자 설정</h1>
               <p className="text-ms-muted text-xs mt-0.5">파싱 조건 및 Asana 연동 설정</p>
             </div>
           </div>
-          <a href="/" className="text-ms-muted hover:text-white text-sm">← 메인으로</a>
+          <a href="/" className="text-ms-muted hover:text-ms-text text-sm">← 메인으로</a>
         </div>
       </header>
 
@@ -314,8 +314,8 @@ export default function AdminPage() {
               onClick={() => setActiveTab(t.id)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 activeTab === t.id
-                  ? "bg-ms-accent text-white"
-                  : "bg-ms-subtle text-ms-muted hover:text-white"
+                  ? "bg-ms-accent text-ms-text"
+                  : "bg-ms-subtle text-ms-muted hover:text-ms-text"
               }`}
             >
               {t.label}
@@ -355,7 +355,7 @@ export default function AdminPage() {
         {activeTab === "tasks" && (
           <div className="space-y-6">
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">담당자 설정</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-4">담당자 설정</h3>
               <div>
                 <label className="ms-label">
                   디자인 서브태스크 담당자 GID
@@ -374,7 +374,7 @@ export default function AdminPage() {
 
             {/* 협업 참여자 */}
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-1">협업 참여자 (Followers)</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-1">협업 참여자 (Followers)</h3>
               <p className="ms-hint mb-3">여기에 입력된 GID의 사용자가 모든 생성 태스크의 협업 참여자로 추가됩니다. GID를 쉼표 또는 줄바꿈으로 구분해 입력하세요.</p>
               <textarea
                 rows={3}
@@ -394,7 +394,7 @@ export default function AdminPage() {
 
             {/* 상품 등록 담당자 (시트 언어 검수 · 어드민 상품 등록 전용) */}
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-1">상품 등록 담당자 (Followers)</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-1">상품 등록 담당자 (Followers)</h3>
               <p className="ms-hint mb-3">
                 시트 언어 검수 · 어드민 상품 등록 태스크 및 하위 태스크에만 추가되는 협업 참여자입니다.
                 위의 <em>협업 참여자</em>와 합산 적용됩니다. GID를 쉼표 또는 줄바꿈으로 구분해 입력하세요.
@@ -417,7 +417,7 @@ export default function AdminPage() {
 
             {/* 아티스트별 하위 태스크 담당자 */}
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-1">아티스트별 하위 태스크 담당자</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-1">아티스트별 하위 태스크 담당자</h3>
               <p className="ms-hint mb-3">특정 아티스트 이름이 감지되면, 해당 이벤트의 서브태스크(포카·특전·오픈디자인 등)에 지정된 담당자 GID를 사용합니다.</p>
               <div className="space-y-2 mb-3">
                 {config.artistDesignerRules.map((rule, idx) => (
@@ -472,7 +472,7 @@ export default function AdminPage() {
             </div>
 
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">기본 마감일 설정</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-4">기본 마감일 설정</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="ms-label">마감일 폴백 (응모마감 없을 때 +N일)</label>
@@ -500,7 +500,7 @@ export default function AdminPage() {
             </div>
 
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-4">태스크 기본 메모</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-4">태스크 기본 메모</h3>
               <div className="space-y-3">
                 {(Object.entries(config.taskNotes) as [keyof typeof config.taskNotes, string][]).map(([key, value]) => (
                   <div key={key}>
@@ -525,7 +525,7 @@ export default function AdminPage() {
 
             {/* ── 자동 조회 패널 ── */}
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-1">🔍 프로젝트에서 GID 자동 조회</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-1">🔍 프로젝트에서 GID 자동 조회</h3>
               <p className="ms-hint mb-4">프로젝트 GID를 입력하고 조회하면 커스텀 필드와 옵션 GID를 한눈에 확인할 수 있습니다. GID를 클릭하면 클립보드에 복사됩니다.</p>
               <div className="flex gap-2 mb-3">
                 <input
@@ -552,7 +552,7 @@ export default function AdminPage() {
                   {lookedUpFields.map((field) => (
                     <div key={field.gid} className="rounded-lg bg-ms-bg border border-ms-border/40 p-3">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-white text-sm font-semibold">{field.name}</span>
+                        <span className="text-ms-text text-sm font-semibold">{field.name}</span>
                         <span className="text-ms-faint text-xs">({field.type})</span>
                       </div>
                       {/* 필드 GID */}
@@ -600,7 +600,7 @@ export default function AdminPage() {
 
             {/* ── 수동 입력 폼 ── */}
             <div className="card">
-              <h3 className="text-base font-semibold text-white mb-2">GID 직접 입력</h3>
+              <h3 className="text-base font-semibold text-ms-text mb-2">GID 직접 입력</h3>
               <p className="ms-hint mb-4">위 조회 결과에서 복사한 GID를 붙여넣으세요. 비워두면 해당 필드는 설정되지 않습니다.</p>
               <div className="space-y-3">
                 {(Object.entries(config.customFieldGids) as [string, string][]).map(([key, value]) => (
@@ -629,7 +629,7 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-white font-semibold">태스크 생성 이력</h2>
+                <h2 className="text-ms-text font-semibold">태스크 생성 이력</h2>
                 <p className="text-ms-muted text-xs mt-0.5">베타 테스트 기간 중 모든 사용자의 생성 이벤트 — 최근 200건</p>
               </div>
               <div className="flex gap-2">
@@ -698,7 +698,7 @@ export default function AdminPage() {
                               hour: "2-digit", minute: "2-digit"
                             })}
                           </td>
-                          <td className="px-3 py-2 text-white text-xs max-w-48 truncate" title={entry.sectionName}>
+                          <td className="px-3 py-2 text-ms-text text-xs max-w-48 truncate" title={entry.sectionName}>
                             {entry.sectionName}
                             {entry.isDerivative && (
                               <span className="ml-1.5 text-ms-gold text-xs">파생</span>
@@ -783,7 +783,7 @@ function KeywordEditor({
 
   return (
     <div className="card">
-      <h3 className="text-base font-semibold text-white mb-1">{label}</h3>
+      <h3 className="text-base font-semibold text-ms-text mb-1">{label}</h3>
       <p className="ms-hint mb-3">{description}</p>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {items.map((item) => (

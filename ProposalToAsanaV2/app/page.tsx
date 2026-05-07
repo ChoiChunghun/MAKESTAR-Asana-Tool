@@ -400,7 +400,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={handleHomeClick}
-              className="text-white font-bold text-lg leading-none hover:text-ms-gold transition-colors"
+              className="text-ms-text font-bold text-lg leading-none hover:text-ms-gold transition-colors"
             >
               MAKESTAR 태스크 머신
             </button>
@@ -422,11 +422,11 @@ export default function HomePage() {
               href="https://developers.asana.com/docs/personal-access-token"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ms-muted hover:text-white text-sm transition-colors"
+              className="text-ms-muted hover:text-ms-text text-sm transition-colors"
             >
               Asana 토큰 발급 방법
             </a>
-            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-white text-sm transition-colors">
+            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-ms-text text-sm transition-colors">
               문의, 제보하기
             </a>
           </div>
@@ -437,9 +437,9 @@ export default function HomePage() {
         {step === "done" ? (
           <div className="card text-center py-12">
             <div className="text-5xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-white mb-2">생성 완료!</h2>
+            <h2 className="text-2xl font-bold text-ms-text mb-2">생성 완료!</h2>
             <p className="text-ms-muted mb-6">
-              총 <strong className="text-white">{createdCount}개</strong>의 태스크가 생성되었습니다.
+              총 <strong className="text-ms-text">{createdCount}개</strong>의 태스크가 생성되었습니다.
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <a
@@ -463,7 +463,7 @@ export default function HomePage() {
             {step === "idle" && (
               <>
                 <div className="text-center py-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">아사나 태스크 생성기</h2>
+                  <h2 className="text-2xl font-bold text-ms-text mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
                     Word, PDF, <s>Google Doc</s>{" "}
                     <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
@@ -492,7 +492,7 @@ export default function HomePage() {
             {step === "parsing" && (
               <div className="card text-center py-16">
                 <div className="spinner mx-auto mb-4" />
-                <p className="text-white font-medium">파싱 중...</p>
+                <p className="text-ms-text font-medium">파싱 중...</p>
                 <p className="text-ms-muted text-sm mt-1">{selectedFile}</p>
               </div>
             )}
@@ -502,9 +502,9 @@ export default function HomePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-ms-muted">
                     <span className="dot-green">●</span>
-                    파싱 완료: <strong className="text-white">{selectedFile}</strong>
+                    파싱 완료: <strong className="text-ms-text">{selectedFile}</strong>
                   </div>
-                  <button type="button" onClick={handleHomeClick} className="text-ms-muted hover:text-white text-sm">
+                  <button type="button" onClick={handleHomeClick} className="text-ms-muted hover:text-ms-text text-sm">
                     ← 처음으로
                   </button>
                 </div>
@@ -512,7 +512,7 @@ export default function HomePage() {
                 {/* 상품코드 일괄 수정 */}
                 <div className="card">
                   <div className="ms-label">
-                    <h2 className="text-sm font-semibold text-white">상품코드</h2>
+                    <h2 className="text-sm font-semibold text-ms-text">상품코드</h2>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -567,7 +567,7 @@ export default function HomePage() {
                 {/* 프로젝트 선택 + 생성 */}
                 <div className="card">
                   <div className="ms-label mb-3">
-                    <h2 className="text-sm font-semibold text-white">Asana 프로젝트 선택</h2>
+                    <h2 className="text-sm font-semibold text-ms-text">Asana 프로젝트 선택</h2>
                   </div>
                   {!token && (
                     <p className="dot-yellow text-sm mb-3">⚠ 상단에서 Asana 토큰을 먼저 입력해주세요.</p>

@@ -120,7 +120,7 @@ export function EventHistory({ history, onClear, onUpdateEntry, token }: Props) 
             className="flex items-start justify-between p-3 rounded-lg bg-ms-bg border border-ms-border/50"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-white text-sm font-medium truncate">{entry.sectionName}</p>
+              <p className="text-ms-text text-sm font-medium truncate">{entry.sectionName}</p>
 
               {/* 상품코드 인라인 편집 */}
               <div className="flex items-center gap-1.5 mt-1">
@@ -149,7 +149,7 @@ export function EventHistory({ history, onClear, onUpdateEntry, token }: Props) 
                     onClick={() => startEdit(entry)}
                     className="flex items-center gap-1.5 text-xs text-left group"
                   >
-                    <span className="text-ms-muted group-hover:text-white truncate max-w-[140px]">
+                    <span className="text-ms-muted group-hover:text-ms-text truncate max-w-[140px]">
                       {entry.productCode ?? entry.summary.productCode ?? "—"}
                     </span>
                     <span className="text-ms-accent shrink-0">[상품 코드 변경]</span>
@@ -169,7 +169,7 @@ export function EventHistory({ history, onClear, onUpdateEntry, token }: Props) 
                   <button
                     type="button"
                     onClick={() => setErrorId(null)}
-                    className="ml-1 text-ms-faint hover:text-white"
+                    className="ml-1 text-ms-faint hover:text-ms-text"
                   >
                     ×
                   </button>

@@ -13,19 +13,19 @@ const config: Config = {
       },
       colors: {
         ms: {
-          bg:           "#111417",  // gray-990
-          panel:        "#1f242a",  // gray-900
-          canvas:       "#0c0f12",  // near-black
+          bg:           "#fcfdfd",  // gray-10   (light bg)
+          panel:        "#f2f4f6",  // gray-50   (card/panel)
+          canvas:       "#ffffff",  // pure white
           accent:       "#ff4d89",  // pink-400  (brand1)
           "accent-hover": "#e5195e", // pink-500
-          gold:         "#FFBF00",
-          text:         "#fcfdfd",  // gray-10   (fg-primary)
-          muted:        "#6d7f92",  // gray-500  (fg-secondary)
-          faint:        "#4c5a66",  // gray-600  (fg-tertiary)
-          border:       "#2d353d",  // gray-800  (border-default)
-          subtle:       "#252c34",  // gray-850  (border-subtle / hover)
-          input:        "#181d22",  // slightly darker panel
-          hover:        "#252c34"   // hover state
+          gold:         "#c08000",  // darker gold for light bg
+          text:         "#111417",  // gray-990  (fg-primary)
+          muted:        "#4c5a66",  // gray-600  (fg-secondary)
+          faint:        "#6d7f92",  // gray-500  (fg-tertiary)
+          border:       "#d4d9de",  // gray-200  (border-default)
+          subtle:       "#e8ebed",  // gray-100  (hover / subtle bg)
+          input:        "#ffffff",  // white input bg
+          hover:        "#e8ebed"   // hover state
         }
       },
       borderRadius: {
@@ -35,7 +35,7 @@ const config: Config = {
         canvas: "10px"
       },
       borderColor: {
-        DEFAULT: "#2d353d"
+        DEFAULT: "#d4d9de"
       }
     }
   },
