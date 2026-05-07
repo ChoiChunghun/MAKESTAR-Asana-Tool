@@ -1,6 +1,6 @@
-# Makestar Asana Tool
+# MAKESTAR Asana Tool
 
-Makestar 이벤트 기획서(Word / PDF)를 파싱해 Asana 태스크를 일괄 생성하는 내부 운영 도구입니다.
+MAKESTAR 이벤트 기획서(Word / PDF)를 파싱해 Asana 태스크를 일괄 생성하는 내부 운영 도구입니다.
 
 ## 주요 기능
 
