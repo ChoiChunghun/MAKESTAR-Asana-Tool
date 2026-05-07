@@ -22,7 +22,7 @@ export function TokenInput({ token, onTokenChange }: Props) {
       <button
         type="button"
         onClick={() => { setDraft(token); setOpen(true); }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
           token
             ? "border-[#87e89e] text-[#20903c] bg-[#e3fce8] hover:bg-[#d0f7d8]"
             : "border-[#f3e28c] text-[#b89f14] bg-[#fdf9e8] hover:bg-[#faf3d0]"
