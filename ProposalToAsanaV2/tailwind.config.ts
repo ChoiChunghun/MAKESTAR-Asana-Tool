@@ -13,7 +13,7 @@ const config: Config = {
       },
       colors: {
         ms: {
-          bg:           "#fcfdfd",  // gray-10   (light bg)
+          bg:           "#ffffff",  // pure white (main bg)
           panel:        "#f2f4f6",  // gray-50   (card/panel)
           canvas:       "#ffffff",  // pure white
           accent:       "#ff4d89",  // pink-400  (brand1)

@@ -28,9 +28,9 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
               tab === t
-                ? "bg-ms-accent text-ms-text"
+                ? "bg-ms-accent text-white"
                 : "bg-ms-subtle text-ms-muted hover:text-ms-text"
             }`}
           >
@@ -66,7 +66,7 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
             className="hidden"
           />
           <div className="text-3xl mb-3">📄</div>
-          <p className="text-ms-text font-medium mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
+          <p className="text-ms-text font-bold mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
           <p className="text-ms-muted text-sm">Word (.docx) 또는 PDF 파일 지원</p>
         </button>
       ) : (

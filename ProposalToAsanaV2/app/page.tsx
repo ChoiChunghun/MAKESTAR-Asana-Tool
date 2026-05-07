@@ -394,7 +394,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
-      <header className="border-b border-ms-border bg-ms-panel">
+      <header className="border-b border-ms-border bg-ms-canvas">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <button
@@ -422,11 +422,11 @@ export default function HomePage() {
               href="https://developers.asana.com/docs/personal-access-token"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ms-muted hover:text-ms-text text-sm transition-colors"
+              className="text-ms-muted hover:text-ms-text text-xs transition-colors"
             >
-              Asana 토큰 발급 방법
+              Asana 토큰 발급 방법 문의
             </a>
-            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-ms-text text-sm transition-colors">
+            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-ms-text text-xs transition-colors">
               문의, 제보하기
             </a>
           </div>
@@ -469,7 +469,7 @@ export default function HomePage() {
                     <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
                     을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />
-                    <span className="text-ms-faint text-xs">* Asana 토큰 입력 후 사용 가능</span>
+                    <span className="text-ms-accent text-xs">* Asana 토큰 입력 후 사용 가능</span>
                   </p>
                 </div>
                 <DocumentUpload
@@ -644,14 +644,14 @@ export default function HomePage() {
           </>
         )}
       </main>
-      <footer className="border-t border-ms-border/20 mt-auto">
+      <footer className="border-t border-ms-border mt-auto bg-ms-panel">
         <div className="max-w-4xl mx-auto px-4 py-5 flex items-center justify-center gap-4">
           <p className="text-ms-faint text-xs">
             © 2026 MAKESTAR Inc. All Rights Reserved.
           </p>
           <a
             href="/admin"
-            className="text-xs"
+            className="text-[10px] font-bold"
             style={{ color: "#E6B800" }}
           >
             관리자

@@ -312,9 +312,9 @@ export default function AdminPage() {
               key={t.id}
               type="button"
               onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
                 activeTab === t.id
-                  ? "bg-ms-accent text-ms-text"
+                  ? "bg-ms-accent text-white"
                   : "bg-ms-subtle text-ms-muted hover:text-ms-text"
               }`}
             >
