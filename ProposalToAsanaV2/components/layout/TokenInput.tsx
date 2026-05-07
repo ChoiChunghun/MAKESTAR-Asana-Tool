@@ -24,8 +24,8 @@ export function TokenInput({ token, onTokenChange }: Props) {
         onClick={() => { setDraft(token); setOpen(true); }}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
           token
-            ? "border-green-500/40 text-green-400 bg-green-500/10 hover:bg-green-500/20"
-            : "border-yellow-500/40 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20"
+            ? "border-[#87e89e] text-[#20903c] bg-[#e3fce8] hover:bg-[#d0f7d8]"
+            : "border-[#f7baba] text-[#e61919] bg-[#fde8e8] hover:bg-[#fcd4d4]"
         }`}
       >
         <span>{token ? "●" : "○"}</span>
