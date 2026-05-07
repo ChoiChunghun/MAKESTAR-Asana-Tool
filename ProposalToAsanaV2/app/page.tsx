@@ -396,18 +396,18 @@ export default function HomePage() {
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
       <header className="border-b border-ms-border bg-ms-canvas">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-end gap-2.5">
+          <div className="flex items-baseline gap-2.5">
             <button
               type="button"
               onClick={handleHomeClick}
-              className="text-ms-text font-bold text-lg leading-none hover:text-ms-gold transition-colors"
+              className="text-ms-text font-bold text-lg leading-none hover:text-ms-accent transition-colors"
             >
               MAKESTAR 태스크 머신
             </button>
-            <div className="flex items-end gap-1 pb-0.5">
+            <div className="flex items-baseline gap-1">
               <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.88.4</span>
-              <span className="text-ms-faint text-xs leading-none">·</span>
-              <span className="text-ms-muted text-xs leading-none">Beta</span>
+              <span className="text-ms-faint text-xs">·</span>
+              <span className="text-ms-muted text-xs">Beta</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -422,11 +422,11 @@ export default function HomePage() {
               href="https://developers.asana.com/docs/personal-access-token"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ms-muted hover:text-ms-text text-xs transition-colors"
+              className="text-ms-muted hover:text-ms-accent text-xs transition-colors"
             >
               Asana 토큰 발급 방법 문의
             </a>
-            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-ms-text text-xs transition-colors">
+            <a href="https://makestar.slack.com/team/UP1P34AUB" target="_blank" rel="noopener noreferrer" className="text-ms-muted hover:text-ms-accent text-xs transition-colors">
               문의, 제보하기
             </a>
           </div>
