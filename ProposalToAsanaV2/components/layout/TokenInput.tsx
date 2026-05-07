@@ -25,7 +25,7 @@ export function TokenInput({ token, onTokenChange }: Props) {
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
           token
             ? "border-[#87e89e] text-[#20903c] bg-[#e3fce8] hover:bg-[#d0f7d8]"
-            : "border-[#f7baba] text-[#e61919] bg-[#fde8e8] hover:bg-[#fcd4d4]"
+            : "border-[#f3e28c] text-[#b89f14] bg-[#fdf9e8] hover:bg-[#faf3d0]"
         }`}
       >
         <span>{token ? "●" : "○"}</span>
