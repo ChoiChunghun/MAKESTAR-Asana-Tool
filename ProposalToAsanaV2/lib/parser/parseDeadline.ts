@@ -136,6 +136,6 @@ function findLastDateInMatchingLines(lines: string[], pattern: RegExp, now: Date
 }
 
 function toMonthDay(iso: string): string {
-  const [, m, d] = iso.split("-");
+  const [, m, d] = iso.slice(0, 10).split("-"); // datetime 안전 처리
   return `${m}/${d}`;
 }

@@ -41,13 +41,15 @@ export function getDueDate(offsetDays: number, now = new Date()): string {
 }
 
 export function shiftIsoDate(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
+  const datePart = iso.slice(0, 10); // "YYYY-MM-DDTHH:MM" → "YYYY-MM-DD"
+  const [y, m, d] = datePart.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d + days));
   return formatPartsToIso(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
 export function buildSeoulDueAt(isoDate: string, hour: number, minute: number): string {
-  return `${isoDate}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`;
+  const datePart = isoDate.slice(0, 10); // "YYYY-MM-DDTHH:MM" → "YYYY-MM-DD"
+  return `${datePart}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`;
 }
 
 export function isValidGid(gid: unknown): boolean {

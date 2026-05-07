@@ -9,8 +9,27 @@ type Props = {
   onSectionNameChange: (name: string) => void;
 };
 
+/** 태스크 미리보기 표시 순서 (Asana 생성 순서와 무관) */
+const PREVIEW_DISPLAY_ORDER: TaskKey[] = [
+  "open", "opendesign", "sitelang", "adminreg",
+  "up",   "upsub",
+  "md",   "pc", "sp",
+  "vmd",  "vmdsub",
+  "winner",
+];
+
 export function TaskPreviewTable({ rows, sectionName, onRowsChange, onSectionNameChange }: Props) {
   const safeRows = rows ?? [];
+
+  // 표시 전용 정렬 — rows 원본(Asana 생성 순서)은 변경하지 않음
+  const displayRows = [...safeRows].sort((a, b) => {
+    const ai = PREVIEW_DISPLAY_ORDER.indexOf(a.key);
+    const bi = PREVIEW_DISPLAY_ORDER.indexOf(b.key);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
   function toggleRow(key: TaskKey) {
     const target = safeRows.find((r) => r.key === key);
@@ -58,7 +77,7 @@ export function TaskPreviewTable({ rows, sectionName, onRowsChange, onSectionNam
             </tr>
           </thead>
           <tbody>
-            {safeRows.map((row) => (
+            {displayRows.map((row) => (
               <tr
                 key={row.key}
                 className={`border-b border-ms-border/30 ${

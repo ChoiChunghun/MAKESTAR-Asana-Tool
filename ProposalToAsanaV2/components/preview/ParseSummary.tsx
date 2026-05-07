@@ -7,10 +7,19 @@ type Props = {
   summary: ParsedPlanSummary;
 };
 
-/** YYYY-MM-DD → YYYY.MM.DD */
-function fmtDate(iso: string | null | undefined): string {
+/**
+ * YYYY-MM-DD            → "YYYY.MM.DD"
+ * YYYY-MM-DDTHH:MM      → "YYYY.MM.DD HH:MM KST"
+ * appendKst=false 이면 KST 생략 (범위 표기에서 앞 부분에 사용)
+ */
+function fmtDateTime(iso: string | null | undefined, appendKst = true): string {
   if (!iso) return "";
-  return iso.slice(0, 10).replace(/-/g, ".");
+  const dateStr = iso.slice(0, 10).replace(/-/g, ".");
+  if (iso.length > 10 && iso[10] === "T") {
+    const time = iso.slice(11, 16);
+    return appendKst ? `${dateStr} ${time} KST` : `${dateStr} ${time}`;
+  }
+  return dateStr;
 }
 
 /** 항목 목록을 줄바꿈으로 표시 — "총 N종/매/개" 행은 볼드 처리 */
@@ -35,15 +44,15 @@ export function ParseSummary({ summary }: Props) {
   const benefits = summary.benefits ?? [];
   const snsItems = summary.snsItems ?? [];
 
-  // 응모 기간
-  const startFmt = fmtDate(summary.applicationStartIso);
-  const endFmt = fmtDate(summary.deadlineIso);
+  // 응모 기간 — 시간 있으면 "YYYY.MM.DD HH:MM - YYYY.MM.DD HH:MM KST"
+  const startFmt = fmtDateTime(summary.applicationStartIso, false); // KST 생략 (앞부분)
+  const endFmt   = fmtDateTime(summary.deadlineIso);                 // KST 포함 (뒷부분)
   const appPeriod =
-    startFmt && endFmt ? `${startFmt} ~ ${endFmt}` :
+    startFmt && endFmt ? `${startFmt} - ${endFmt}` :
     endFmt || startFmt || "(파악 불가)";
 
-  // 당첨자 발표일
-  const winnerFmt = fmtDate(summary.winnerAnnouncementIso) || "(파악 불가)";
+  // 당첨자 발표일 (날짜만, 시간 없음)
+  const winnerFmt = fmtDateTime(summary.winnerAnnouncementIso) || "(파악 불가)";
 
   // 포토카드 줄별 표시
   const pcLines: string[] =

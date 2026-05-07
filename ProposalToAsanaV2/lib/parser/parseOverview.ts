@@ -276,16 +276,22 @@ function parseApplicationPeriod(text: string): { startIso: string | null; endIso
 // ──────────────────────────────────────────────────────────────────────────
 
 function extractIsoDateFromString(s: string): string | null {
-  // 요일/KST 제거 후 날짜 추출
+  // 요일/KST 제거 후 날짜+시간 추출 ("YYYY-MM-DD HH:MM" 또는 "YYYY.MM.DD HH:MM")
   const cleaned = s
     .replace(/\([월화수목금토일]\)/g, "")
     .replace(/\(KST\)/gi, "")
     .trim();
-  const m = cleaned.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  // 날짜: YYYY[-.]MM[-.]DD, 이후 선택적으로 비숫자 구분자 + HH:MM
+  const m = cleaned.match(/(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})(?:[^\d](\d{1,2}):(\d{2}))?/);
   if (!m) return null;
   const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
   if (!isValidDate(y, mo, d)) return null;
-  return `${m[1]}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const dateStr = `${m[1]}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  if (m[4] !== undefined && m[5] !== undefined) {
+    const h = Number(m[4]);
+    if (h >= 0 && h <= 23) return `${dateStr}T${String(h).padStart(2, "0")}:${m[5]}`;
+  }
+  return dateStr;
 }
 
 function parseFirstIsoDate(text: string): string | null {
