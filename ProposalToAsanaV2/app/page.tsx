@@ -396,7 +396,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
       <header className="border-b border-ms-border bg-ms-canvas">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-end gap-2.5">
             <button
               type="button"
               onClick={handleHomeClick}
@@ -404,10 +404,10 @@ export default function HomePage() {
             >
               MAKESTAR 태스크 머신
             </button>
-            <div className="flex items-center gap-1">
-              <span className="text-ms-gold text-xs font-semibold tracking-wide">v0.88.3</span>
-              <span className="text-ms-faint text-xs">·</span>
-              <span className="text-ms-muted text-xs">Beta</span>
+            <div className="flex items-end gap-1 pb-0.5">
+              <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.88.4</span>
+              <span className="text-ms-faint text-xs leading-none">·</span>
+              <span className="text-ms-muted text-xs leading-none">Beta</span>
             </div>
           </div>
           <div className="flex items-center gap-3">

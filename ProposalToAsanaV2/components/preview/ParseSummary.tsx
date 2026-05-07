@@ -13,13 +13,15 @@ function fmtDate(iso: string | null | undefined): string {
   return iso.slice(0, 10).replace(/-/g, ".");
 }
 
-/** 항목 목록을 줄바꿈으로 표시 */
+/** 항목 목록을 줄바꿈으로 표시 — "총 N종/매/개" 행은 볼드 처리 */
 function multiLine(items: string[], emptyText = "(없음)"): ReactNode {
   if (!items.length) return <span className="text-ms-faint">{emptyText}</span>;
   return (
     <>
       {items.map((item, i) => (
-        <span key={i} className="block">{item}</span>
+        <span key={i} className={`block ${/^총\s*\d+/.test(item) ? "font-bold" : ""}`}>
+          {item}
+        </span>
       ))}
     </>
   );

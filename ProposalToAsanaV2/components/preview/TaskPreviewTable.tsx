@@ -52,8 +52,8 @@ export function TaskPreviewTable({ rows, sectionName, onRowsChange, onSectionNam
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-ms-border">
-              <th className="text-left py-2 pr-3 text-ms-muted font-medium w-8">생성</th>
-              <th className="text-left py-2 pr-3 text-ms-muted font-medium w-28">구분</th>
+              <th className="text-left py-2 pr-3 text-ms-muted font-medium w-10 whitespace-nowrap">생성</th>
+              <th className="text-left py-2 pr-3 text-ms-muted font-medium w-36">구분</th>
               <th className="text-left py-2 text-ms-muted font-medium">태스크명</th>
             </tr>
           </thead>
@@ -76,7 +76,7 @@ export function TaskPreviewTable({ rows, sectionName, onRowsChange, onSectionNam
                 </td>
                 <td className="py-2 pr-3">
                   <span
-                    className={`text-xs ${
+                    className={`text-xs whitespace-nowrap ${
                       row.indent > 0 ? "text-ms-faint pl-4" : "text-ms-text font-medium"
                     }`}
                   >
