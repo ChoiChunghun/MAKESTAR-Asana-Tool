@@ -13,10 +13,10 @@ export function parseEventStartDate(data: NormalizedPlanData, now = new Date()):
   // ① 개요 테이블에서 파싱된 값 우선 사용
   if (data.applicationStartIso) return toMonthDay(data.applicationStartIso);
 
-  // ② fallback: 문서 전체에서 응모기간 행 탐색
+  // ② fallback: 문서 전체에서 응모기간/판매기간 행 탐색
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
-    if (!/(응모.*기간|응모기간|시작일)/.test(line)) continue;
+    if (!/(응모.*기간|응모기간|판매.*기간|판매기간|시작일)/.test(line)) continue;
     const dates = extractIsoDatesFromText(line, now);
     if (dates.length) return toMonthDay(dates[0]);
     for (let offset = 1; offset <= 4; offset++) {
@@ -43,6 +43,7 @@ export function parseApplicationDeadlineIso(data: NormalizedPlanData, now = new 
   const patterns = [
     /(응모.*(?:마감|종료)|(?:마감|종료).*(?:응모|신청))/i,
     /(응모.*기간|응모기간)/i,
+    /(판매.*기간|판매기간)/i,
     /(마감일|종료일)/i
   ];
   for (const pattern of patterns) {
@@ -75,7 +76,8 @@ export function getTaskDueFields(
 }
 
 export function getWinnerDueFields(data: NormalizedPlanData, now = new Date()): DueFields {
-  if (data.winnerAnnouncementIso) return { due_on: data.winnerAnnouncementIso };
+  const iso = data.winnerAnnouncementIso || findWinnerAnnouncementInLines(data.lines, now);
+  if (iso) return { due_on: iso };
   return { due_on: getDueDate(DUE_DAYS_OFFSET, now) };
 }
 
@@ -83,7 +85,9 @@ export function getWinnerDueFields(data: NormalizedPlanData, now = new Date()): 
 
 export function buildDueSummary(data: NormalizedPlanData, now = new Date()): DueSummary {
   const deadlineIso = parseApplicationDeadlineIso(data, now);
-  const winnerAnnouncementIso = data.winnerAnnouncementIso || null;
+  // winnerAnnouncementIso: 개요 파서 결과 → 전체 행 fallback 탐색 순
+  const winnerAnnouncementIso =
+    data.winnerAnnouncementIso || findWinnerAnnouncementInLines(data.lines, now) || null;
   const open = getTaskDueFields(data, "open", now);
   const md = getTaskDueFields(data, "md", now);
   const update = getTaskDueFields(data, "update", now);
@@ -148,7 +152,7 @@ function formatDue(f: DueFields): string {
 function findDeadlineFromBlock(lines: string[], now: Date): string | null {
   for (let i = 0; i < lines.length; i++) {
     const norm = lines[i].replace(/\s+/g, "");
-    if (!norm.includes("이벤트응모기간")) continue;
+    if (!norm.includes("이벤트응모기간") && !norm.includes("판매기간")) continue;
     for (let offset = 1; offset <= 4; offset++) {
       if (i + offset >= lines.length) break;
       const dates = extractIsoDatesFromText(lines[i + offset], now);
@@ -172,4 +176,29 @@ function findLastDateInMatchingLines(lines: string[], pattern: RegExp, now: Date
 function toMonthDay(iso: string): string {
   const [, m, d] = iso.slice(0, 10).split("-"); // datetime 안전 처리
   return `${m}/${d}`;
+}
+
+/**
+ * 전체 행에서 "당첨자 발표" 또는 "당첨자 공지" 키워드로 날짜를 찾습니다.
+ * parseOverview 에서 추출하지 못했을 때의 최종 fallback.
+ */
+function findWinnerAnnouncementInLines(lines: string[], now: Date): string | null {
+  for (let i = 0; i < lines.length; i++) {
+    const norm = lines[i].replace(/\s+/g, "");
+    // 단독 레이블 행 ("당첨자발표", "당첨자공지")
+    if (norm === "당첨자발표" || norm === "당첨자공지") {
+      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        const v = lines[j]?.trim();
+        if (!v) continue;
+        const dates = extractIsoDatesFromText(v, now);
+        if (dates.length) return dates[0];
+      }
+    }
+    // 인라인 "당첨자 발표 2026-05-01" / "당첨자 공지 2026년 04월 16일"
+    if (/당첨자\s*(?:발표|공지)/.test(lines[i])) {
+      const dates = extractIsoDatesFromText(lines[i], now);
+      if (dates.length) return dates[0];
+    }
+  }
+  return null;
 }
