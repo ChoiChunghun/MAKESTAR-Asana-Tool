@@ -66,17 +66,32 @@ type DerivativeInfo = {
   suffix: "_CN" | "_NAEU";
 };
 
+/** 이벤트 하나의 편집 가능한 상태 */
+type EventState = {
+  plan: ParsedPlanResult;
+  rows: PreviewTaskRow[];
+  sectionName: string;
+  productCodeOverride: string;
+};
+
 export default function HomePage() {
   const [token, setToken] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedFile, setSelectedFile] = useState<string>("");
 
+  // ── 단일 이벤트 상태 (isMultiEvent = false 일 때만 사용) ──────────────────
   const [plan, setPlan] = useState<ParsedPlanResult | null>(null);
   const [rows, setRows] = useState<PreviewTaskRow[]>([]);
   const [sectionName, setSectionName] = useState("");
   const [productCodeOverride, setProductCodeOverride] = useState("");
 
+  // ── 다중 이벤트 상태 (isMultiEvent = true 일 때만 사용) ────────────────────
+  const [isMultiEvent, setIsMultiEvent] = useState(false);
+  const [activeEventIdx, setActiveEventIdx] = useState(0);
+  const [eventStates, setEventStates] = useState<EventState[]>([]);
+
+  // ── 파생 감지 (단일/다중 공통) ────────────────────────────────────────────
   const [projects, setProjects] = useState<AsanaProject[]>([]);
   const [projectGid, setProjectGid] = useState("");
   const [projectsLoading, setProjectsLoading] = useState(false);
@@ -91,6 +106,45 @@ export default function HomePage() {
   const [changelog, setChangelog] = useState("");
 
   const fileInputKey = useRef(0);
+
+  // ── 파생 상태에서 읽을 "현재 활성 이벤트" 파생값 ──────────────────────────
+  const activePlan        = isMultiEvent ? (eventStates[activeEventIdx]?.plan ?? null)                    : plan;
+  const activeRows        = isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? [])                      : rows;
+  const activeSectionName = isMultiEvent ? (eventStates[activeEventIdx]?.sectionName ?? "")               : sectionName;
+  const activeProductCode = isMultiEvent ? (eventStates[activeEventIdx]?.productCodeOverride ?? "")       : productCodeOverride;
+
+  /** 현재 활성 이벤트의 rows 를 업데이트 */
+  function setActiveRows(newRows: PreviewTaskRow[]) {
+    if (isMultiEvent) {
+      setEventStates((prev) =>
+        prev.map((e, i) => (i === activeEventIdx ? { ...e, rows: newRows } : e))
+      );
+    } else {
+      setRows(newRows);
+    }
+  }
+
+  /** 현재 활성 이벤트의 sectionName 을 업데이트 */
+  function setActiveSectionName(name: string) {
+    if (isMultiEvent) {
+      setEventStates((prev) =>
+        prev.map((e, i) => (i === activeEventIdx ? { ...e, sectionName: name } : e))
+      );
+    } else {
+      setSectionName(name);
+    }
+  }
+
+  /** 현재 활성 이벤트의 productCodeOverride 를 업데이트 */
+  function setActiveProductCode(code: string) {
+    if (isMultiEvent) {
+      setEventStates((prev) =>
+        prev.map((e, i) => (i === activeEventIdx ? { ...e, productCodeOverride: code } : e))
+      );
+    } else {
+      setProductCodeOverride(code);
+    }
+  }
 
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
@@ -191,9 +245,13 @@ export default function HomePage() {
         res = await fetch("/api/parse-document", { method: "POST", body: formData });
       }
 
-      const data = await safeJson(res, "파싱 중 오류가 발생했습니다.") as ParsedPlanResult & { message?: string };
+      const data = await safeJson(res, "파싱 중 오류가 발생했습니다.") as {
+        events?: ParsedPlanResult[];
+        isMultiEvent?: boolean;
+        message?: string;
+      } & ParsedPlanResult;
       if (!res.ok) throw new Error(data.message);
-      applyParseResult(data);
+      handleParseResponse(data);
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "파싱 중 오류가 발생했습니다.");
       setStep("idle");
@@ -219,12 +277,34 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ googleDocUrl: url })
       });
-      const data = await safeJson(res, "Google Doc 파싱 중 오류가 발생했습니다.") as ParsedPlanResult & { message?: string };
+      const data = await safeJson(res, "Google Doc 파싱 중 오류가 발생했습니다.") as {
+        events?: ParsedPlanResult[];
+        isMultiEvent?: boolean;
+        message?: string;
+      } & ParsedPlanResult;
       if (!res.ok) throw new Error(data.message);
-      applyParseResult(data);
+      handleParseResponse(data);
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Google Doc 파싱 중 오류가 발생했습니다.");
       setStep("idle");
+    }
+  }
+
+  /** API 응답 (단일 / 다중 이벤트 모두 처리) */
+  function handleParseResponse(data: {
+    events?: ParsedPlanResult[];
+    isMultiEvent?: boolean;
+    message?: string;
+  } & ParsedPlanResult) {
+    if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+      if (data.isMultiEvent && data.events.length > 1) {
+        applyMultiParseResult(data.events);
+      } else {
+        applyParseResult(data.events[0]);
+      }
+    } else {
+      // 이전 응답 포맷 호환 (직접 ParsedPlanResult 반환 시)
+      applyParseResult(data as ParsedPlanResult);
     }
   }
 
@@ -234,6 +314,8 @@ export default function HomePage() {
       setStep("idle");
       return;
     }
+    setIsMultiEvent(false);
+    setEventStates([]);
     setPlan(data);
     setRows(data.previewRows);
     setSectionName(data.summary.sectionName ?? "");
@@ -246,98 +328,178 @@ export default function HomePage() {
     }
   }
 
+  function applyMultiParseResult(events: ParsedPlanResult[]) {
+    const states: EventState[] = events.map((e) => ({
+      plan: e,
+      rows: [...e.previewRows],
+      sectionName: e.summary.sectionName ?? "",
+      productCodeOverride: e.summary.productCode ?? ""
+    }));
+    setIsMultiEvent(true);
+    setActiveEventIdx(0);
+    setEventStates(states);
+    setPlan(null);
+    setRows([]);
+    setSectionName("");
+    setProductCodeOverride("");
+    setStep("preview");
+    if (token && projects.length === 0) loadProjects(token);
+    if (token && projectGid) {
+      checkDerivativeMode(projectGid, events[0].summary.productCode ?? "", token);
+    }
+  }
+
   function applyProductCodeOverride() {
-    if (!plan || !productCodeOverride.trim()) return;
-    const code = productCodeOverride.trim();
-    setRows((prev) =>
-      prev.map((r) => ({
-        ...r,
-        title: r.title.replace(/^\[.*?\]/, `[${code}]`)
-      }))
-    );
-    setSectionName((prev) => {
-      const parts = prev.split(" ");
-      if (parts.length >= 2) return `${parts[0]} ${code}`;
-      return `${prev} ${code}`;
-    });
+    if (!activeProductCode.trim()) return;
+    const code = activeProductCode.trim();
+    const newRows = activeRows.map((r) => ({
+      ...r,
+      title: r.title.replace(/^\[.*?\]/, `[${code}]`)
+    }));
+    const currentSectionName = activeSectionName;
+    const parts = currentSectionName.split(" ");
+    const newSectionName = parts.length >= 2 ? `${parts[0]} ${code}` : `${currentSectionName} ${code}`;
+
+    setActiveRows(newRows);
+    setActiveSectionName(newSectionName);
     // 상품코드 변경 → 파생 모드 재확인
     if (token && projectGid) checkDerivativeMode(projectGid, code, token);
   }
 
-  async function handleCreate() {
-    if (!token || !projectGid || !plan) return;
-
-    // ── 해외 단독 프로젝트: 당첨자 선정 팝업 ───────────────────────────────
-    let effectiveRows = rows;
+  /** 단일 이벤트 태스크 생성 (공통 로직) */
+  async function createTasksForState(
+    es: EventState,
+    skipWinnerPrompt = false
+  ): Promise<{ projectUrl: string; sectionGid?: string; createdTasks?: { gid: string; name: string }[]; count: number }> {
+    let effectiveRows = es.rows;
     const selectedProjectName = projects.find((p) => p.gid === projectGid)?.name ?? "";
     const isHaewaeProject = selectedProjectName.includes("해외 단독");
-    const winnerRow = rows.find((r) => r.key === "winner");
-    if (isHaewaeProject && winnerRow?.enabled && !derivativeInfo) {
+    const winnerRow = es.rows.find((r) => r.key === "winner");
+    if (!skipWinnerPrompt && isHaewaeProject && winnerRow?.enabled && !derivativeInfo) {
       const skip = window.confirm(
         "선택하신 프로젝트는 「해외 단독」 프로젝트입니다.\n당첨자 선정 태스크를 만들지 않을까요?"
       );
       if (skip) {
-        effectiveRows = rows.map((r) => r.key === "winner" ? { ...r, enabled: false } : r);
-        setRows(effectiveRows);
+        effectiveRows = es.rows.map((r) => r.key === "winner" ? { ...r, enabled: false } : r);
       }
     }
 
+    const cfg = (() => {
+      try {
+        const c = JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY) || "{}");
+        return {
+          designerGid: c.designerGid || "",
+          followerGids: c.followerGids || [],
+          productRegFollowerGids: c.productRegFollowerGids || [],
+          artistDesignerMap: c.artistDesignerRules || [],
+          updateNote: c.updateNote || ""
+        };
+      } catch {
+        return { designerGid: "", followerGids: [], productRegFollowerGids: [], artistDesignerMap: [], updateNote: "" };
+      }
+    })();
+
+    const res = await fetch("/api/asana/create-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        asanaToken: token,
+        projectGid,
+        projectName: projects.find((p) => p.gid === projectGid)?.name ?? projectGid,
+        sectionName: es.sectionName,
+        plan: es.plan,
+        rows: effectiveRows,
+        ...cfg,
+        ...(derivativeInfo
+          ? { derivative: { sectionGid: derivativeInfo.sectionGid, suffix: derivativeInfo.suffix } }
+          : {})
+      })
+    });
+    const raw = await safeJson(res, "Asana 태스크 생성 중 오류가 발생했습니다.") as {
+      message?: string; projectUrl?: string; sectionGid?: string;
+      createdTasks?: { gid: string; name: string }[];
+    };
+    if (!res.ok) throw new Error(raw.message);
+    return {
+      projectUrl: raw.projectUrl ?? "",
+      sectionGid: raw.sectionGid,
+      createdTasks: raw.createdTasks,
+      count: raw.createdTasks?.length || 0
+    };
+  }
+
+  async function handleCreate() {
+    if (!token || !projectGid || !activePlan) return;
+    const currentState: EventState = {
+      plan: activePlan,
+      rows: activeRows,
+      sectionName: activeSectionName,
+      productCodeOverride: activeProductCode
+    };
     setStep("creating");
     setErrorMsg("");
-
     try {
-      const res = await fetch("/api/asana/create-tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          asanaToken: token,
-          projectGid,
-          projectName: projects.find((p) => p.gid === projectGid)?.name ?? projectGid,
-          sectionName,
-          plan,
-          rows: effectiveRows,
-          ...(() => {
-            try {
-              const cfg = JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY) || "{}");
-              return {
-                designerGid: cfg.designerGid || "",
-                followerGids: cfg.followerGids || [],
-                productRegFollowerGids: cfg.productRegFollowerGids || [],
-                artistDesignerMap: cfg.artistDesignerRules || [],
-                updateNote: cfg.updateNote || ""
-              };
-            } catch { return { designerGid: "", followerGids: [], productRegFollowerGids: [], artistDesignerMap: [], updateNote: "" }; }
-          })(),
-          ...(derivativeInfo
-            ? { derivative: { sectionGid: derivativeInfo.sectionGid, suffix: derivativeInfo.suffix } }
-            : {})
-        })
-      });
-      const raw = await safeJson(res, "Asana 태스크 생성 중 오류가 발생했습니다.") as {
-        message?: string; projectUrl?: string; sectionGid?: string;
-        createdTasks?: { gid: string; name: string }[];
-      };
-      if (!res.ok) throw new Error(raw.message);
-
-      setDoneUrl(raw.projectUrl ?? "");
-      setCreatedCount(raw.createdTasks?.length || 0);
+      const result = await createTasksForState(currentState);
+      setDoneUrl(result.projectUrl);
+      setCreatedCount(result.count);
       setStep("done");
 
       const projectName = projects.find((p) => p.gid === projectGid)?.name || projectGid;
       const newEntry: HistoryEntry = {
         id: Date.now().toString(),
         createdAt: new Date().toISOString(),
-        sectionName,
-        summary: plan.summary,
+        sectionName: activeSectionName,
+        summary: activePlan.summary,
         projectGid,
         projectName,
-        productCode: productCodeOverride.trim() || plan.summary.productCode,
-        sectionGid: raw.sectionGid,
-        createdTasks: raw.createdTasks?.map((t) => ({ gid: t.gid, name: t.name }))
+        productCode: activeProductCode.trim() || activePlan.summary.productCode,
+        sectionGid: result.sectionGid,
+        createdTasks: result.createdTasks?.map((t) => ({ gid: t.gid, name: t.name }))
       };
       const newHistory = [newEntry, ...history].slice(0, MAX_HISTORY);
       setHistory(newHistory);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Asana 태스크 생성 중 오류가 발생했습니다.");
+      setStep("preview");
+    }
+  }
+
+  /** 전체 이벤트 순서대로 생성 (다중 이벤트 전용) */
+  async function handleCreateAll() {
+    if (!token || !projectGid || eventStates.length < 2) return;
+    setStep("creating");
+    setErrorMsg("");
+    let totalCount = 0;
+    let lastProjectUrl = "";
+    try {
+      for (let i = 0; i < eventStates.length; i++) {
+        const result = await createTasksForState(eventStates[i], i > 0); // 2번째 이후 overseas 팝업 생략
+        totalCount += result.count;
+        lastProjectUrl = result.projectUrl || lastProjectUrl;
+
+        const projectName = projects.find((p) => p.gid === projectGid)?.name || projectGid;
+        const es = eventStates[i];
+        const newEntry: HistoryEntry = {
+          id: `${Date.now()}_${i}`,
+          createdAt: new Date().toISOString(),
+          sectionName: es.sectionName,
+          summary: es.plan.summary,
+          projectGid,
+          projectName,
+          productCode: es.productCodeOverride.trim() || es.plan.summary.productCode,
+          sectionGid: result.sectionGid,
+          createdTasks: result.createdTasks?.map((t) => ({ gid: t.gid, name: t.name }))
+        };
+        setHistory((prev) => {
+          const updated = [newEntry, ...prev].slice(0, MAX_HISTORY);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+      setDoneUrl(lastProjectUrl);
+      setCreatedCount(totalCount);
+      setStep("done");
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Asana 태스크 생성 중 오류가 발생했습니다.");
       setStep("preview");
@@ -394,10 +556,19 @@ export default function HomePage() {
     setSelectedFile("");
     setDoneUrl("");
     setDerivativeInfo(null);
+    setIsMultiEvent(false);
+    setActiveEventIdx(0);
+    setEventStates([]);
   }
 
-  const hasDefaultCode = rows.some((r) => r.title?.includes("추후 일괄 변경"));
-  const canCreate = token && projectGid && plan && rows.some((r) => r.enabled && r.available);
+  const hasDefaultCode = activeRows.some((r) => r.title?.includes("추후 일괄 변경"));
+  const canCreate = token && projectGid && activePlan && activeRows.some((r) => r.enabled && r.available);
+
+  // 다중 이벤트 탭 라벨
+  const eventTabLabels = eventStates.map((es) => {
+    const label = es.plan.normalizedData?.partLabel;
+    return label || `이벤트 ${eventStates.indexOf(es) + 1}`;
+  });
 
   return (
     <div className="min-h-screen bg-ms-bg text-ms-text flex flex-col">
@@ -412,7 +583,7 @@ export default function HomePage() {
               MAKESTAR 태스크 머신
             </button>
             <div className="flex items-baseline gap-1">
-              <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.88.4</span>
+              <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.89.0</span>
               <span className="text-ms-faint text-xs">·</span>
               <span className="text-ms-muted text-xs">Beta</span>
             </div>
@@ -512,17 +683,42 @@ export default function HomePage() {
               </div>
             )}
 
-            {(step === "preview" || step === "creating") && plan && (
+            {(step === "preview" || step === "creating") && activePlan && (
               <>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-ms-muted">
                     <span className="dot-green">●</span>
                     파싱 완료: <strong className="text-ms-text">{selectedFile}</strong>
+                    {isMultiEvent && (
+                      <span className="ml-2 px-2 py-0.5 bg-ms-accent/20 text-ms-accent text-xs rounded-full font-semibold">
+                        {eventStates.length}부 이벤트
+                      </span>
+                    )}
                   </div>
                   <button type="button" onClick={handleHomeClick} className="text-ms-muted hover:text-ms-text text-sm">
                     ← 처음으로
                   </button>
                 </div>
+
+                {/* ── 다중 이벤트 탭 ────────────────────────────────────────── */}
+                {isMultiEvent && (
+                  <div className="flex gap-1 border-b border-ms-border pb-0">
+                    {eventTabLabels.map((label, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveEventIdx(idx)}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg border border-b-0 transition-colors ${
+                          idx === activeEventIdx
+                            ? "bg-ms-canvas border-ms-border text-ms-accent"
+                            : "bg-ms-panel border-transparent text-ms-muted hover:text-ms-text"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* 상품코드 일괄 수정 */}
                 <div className="card">
@@ -532,8 +728,8 @@ export default function HomePage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={productCodeOverride}
-                      onChange={(e) => setProductCodeOverride(e.target.value)}
+                      value={activeProductCode}
+                      onChange={(e) => setActiveProductCode(e.target.value)}
                       placeholder="상품코드 또는 아티스트명+코드"
                       className="ms-input flex-1"
                     />
@@ -550,13 +746,13 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <ParseSummary summary={plan.summary} />
+                <ParseSummary summary={activePlan.summary} />
 
                 <TaskPreviewTable
-                  rows={rows}
-                  sectionName={sectionName}
-                  onRowsChange={setRows}
-                  onSectionNameChange={setSectionName}
+                  rows={activeRows}
+                  sectionName={activeSectionName}
+                  onRowsChange={setActiveRows}
+                  onSectionNameChange={setActiveSectionName}
                 />
 
                 {/* 파생 모드 배너 */}
@@ -596,8 +792,8 @@ export default function HomePage() {
                           value={projectGid}
                           onChange={(e) => {
                             setProjectGid(e.target.value);
-                            if (plan && token) {
-                              const code = productCodeOverride.trim() || plan.summary.productCode;
+                            if (activePlan && token) {
+                              const code = activeProductCode.trim() || activePlan.summary.productCode;
                               checkDerivativeMode(e.target.value, code, token);
                             }
                           }}
@@ -631,21 +827,54 @@ export default function HomePage() {
                         </div>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      disabled={!canCreate || step === "creating"}
-                      onClick={handleCreate}
-                      className="btn-accent px-6 py-2.5"
-                    >
-                      {step === "creating" ? (
-                        <span className="flex items-center gap-2">
-                          <span className="spinner-sm" />
-                          생성 중...
-                        </span>
-                      ) : (
-                        "생성하기"
-                      )}
-                    </button>
+
+                    {/* 단일 이벤트: 생성하기 / 다중 이벤트: 이 부만 + 전체 생성 */}
+                    {isMultiEvent ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={!canCreate || step === "creating"}
+                          onClick={handleCreate}
+                          className="btn px-4 py-2.5"
+                          title={`${eventTabLabels[activeEventIdx]} 만 생성`}
+                        >
+                          {step === "creating" ? (
+                            <span className="flex items-center gap-2"><span className="spinner-sm" />생성 중...</span>
+                          ) : (
+                            `${eventTabLabels[activeEventIdx]} 만 생성`
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!token || !projectGid || step === "creating"}
+                          onClick={handleCreateAll}
+                          className="btn-accent px-4 py-2.5"
+                          title={`${eventStates.length}부 전체 생성`}
+                        >
+                          {step === "creating" ? (
+                            <span className="flex items-center gap-2"><span className="spinner-sm" />생성 중...</span>
+                          ) : (
+                            `전체 생성 (${eventStates.length}부)`
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!canCreate || step === "creating"}
+                        onClick={handleCreate}
+                        className="btn-accent px-6 py-2.5"
+                      >
+                        {step === "creating" ? (
+                          <span className="flex items-center gap-2">
+                            <span className="spinner-sm" />
+                            생성 중...
+                          </span>
+                        ) : (
+                          "생성하기"
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </>

@@ -23,6 +23,8 @@ export type NormalizedPlanData = {
   winnerAnnouncementIso?: string | null;
   applicationStartIso?: string | null;   // 응모 시작 일시 (YYYY-MM-DD)
   applicationEndIso?: string | null;     // 응모 종료 일시 (YYYY-MM-DD)
+  /** 다중 이벤트 기획서의 부(部) 라벨 (예: "1부", "2부") */
+  partLabel?: string;
 };
 
 export type OpenEventLabel =

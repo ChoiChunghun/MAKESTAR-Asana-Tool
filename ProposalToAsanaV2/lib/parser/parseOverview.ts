@@ -78,7 +78,7 @@ function extractOverviewTable(lines: string[]): OverviewFields {
   const LABEL_KEYS = [
     "아티스트", "앨범", "소속사", "진행장소", "이벤트명",
     "진행일시", "당첨자수", "이벤트소요시간", "판매처",
-    "응모기간", "당첨자발표"
+    "응모기간", "판매기간", "당첨자발표", "당첨자공지"
   ];
 
   const found = new Set<string>();
@@ -149,9 +149,11 @@ function extractOverviewTable(lines: string[]): OverviewFields {
       }
     }
 
-    // ── 응모기간 (④ 시작 ~ 종료 파싱) ───────────────────────────────────
+    // ── 응모기간 / 판매기간 (④ 시작 ~ 종료 파싱) ───────────────────────────
     if (!found.has("applicationPeriod")) {
-      if (norm === "응모기간") {
+      const isPeriodLabel = norm === "응모기간" || norm === "판매기간";
+      const hasPeriodInline = /응모기간|판매기간/.test(norm) && !isPeriodLabel;
+      if (isPeriodLabel) {
         const raw = findPeriodValue(scanLines, i + 1, LABEL_KEYS);
         if (raw) {
           const { startIso, endIso } = parseApplicationPeriod(raw);
@@ -159,8 +161,9 @@ function extractOverviewTable(lines: string[]): OverviewFields {
           result.applicationEndIso = endIso;
           found.add("applicationPeriod");
         }
-      } else if (/응모기간/.test(norm)) {
-        const raw = extractValueAfterLabel(line, "응모기간");
+      } else if (hasPeriodInline) {
+        const labelUsed = norm.includes("판매기간") ? "판매기간" : "응모기간";
+        const raw = extractValueAfterLabel(line, labelUsed);
         if (raw) {
           const { startIso, endIso } = parseApplicationPeriod(raw);
           result.applicationStartIso = startIso;
@@ -170,15 +173,16 @@ function extractOverviewTable(lines: string[]): OverviewFields {
       }
     }
 
-    // ── 당첨자 발표 (⑤ YYYY-MM-DD 추출) ─────────────────────────────────
+    // ── 당첨자 발표 / 당첨자 공지 (⑤ YYYY-MM-DD 추출) ───────────────────────
     if (!found.has("winnerAnnouncement")) {
-      if (norm === "당첨자발표") {
+      const isWinnerLabel = norm === "당첨자발표" || norm === "당첨자공지";
+      if (isWinnerLabel) {
         const raw = findNextNonEmptyValue(scanLines, i + 1, LABEL_KEYS);
         if (raw) {
           const iso = parseFirstIsoDate(raw);
           if (iso) { result.winnerAnnouncementIso = iso; found.add("winnerAnnouncement"); }
         }
-      } else if (/당첨자\s*발표/.test(line)) {
+      } else if (/당첨자\s*(?:발표|공지)/.test(line)) {
         // 인라인 또는 다음 줄 탐색
         const inlineRaw = extractValueAfterLabel(line, "당첨자");
         const raw = inlineRaw || findNextNonEmptyValue(scanLines, i + 1, LABEL_KEYS);

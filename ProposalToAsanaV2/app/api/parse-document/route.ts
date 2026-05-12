@@ -4,20 +4,43 @@ import { extractTextFromDocx } from "@/lib/document/extractDocx";
 import { extractTextFromGoogleDoc } from "@/lib/document/extractGoogleDoc";
 import { buildNormalizedData } from "@/lib/parser/parseOverview";
 import { buildPreviewData } from "@/lib/parser/buildPreviewData";
+import { buildMultiEventData } from "@/lib/parser/multiEvent";
+import type { ParsedPlanResult } from "@/types/parser";
 
 export const runtime = "nodejs";
 
+/** 응답 타입 — 항상 { events, isMultiEvent } 형태로 반환 */
+type ParseResponse = {
+  events: ParsedPlanResult[];
+  isMultiEvent: boolean;
+};
+
 // 파서를 안전하게 실행 — 내부 예외가 전체 요청을 망가뜨리지 않도록 격리
-function safeParseDocument(text: string, sourceName: string) {
+function safeParseDocument(text: string, sourceName: string): { ok: true; data: ParseResponse } | { ok: false; message: string } {
   try {
+    // 다중 이벤트 감지 시도
+    const multiData = buildMultiEventData(text, sourceName);
+    if (multiData && multiData.length >= 2) {
+      const events = multiData.map((d) => buildPreviewData(d));
+      // 섹션명에 부(部) 접미사 추가
+      events.forEach((e) => {
+        const label = e.normalizedData.partLabel;
+        if (label) {
+          e.summary.sectionName = `${e.summary.sectionName}_${label}`;
+        }
+      });
+      return { ok: true, data: { events, isMultiEvent: true } };
+    }
+
+    // 단일 이벤트
     const normalizedData = buildNormalizedData(text, sourceName);
     const preview = buildPreviewData(normalizedData);
-    return { ok: true as const, preview };
+    return { ok: true, data: { events: [preview], isMultiEvent: false } };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "문서 파싱 중 알 수 없는 오류가 발생했습니다.";
     console.error("[parse-document] parser threw:", err);
-    return { ok: false as const, message };
+    return { ok: false, message };
   }
 }
 
@@ -49,7 +72,7 @@ export async function POST(request: Request) {
         }
         const result = safeParseDocument(body.rawText, body.fileName || "문서");
         if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
-        return NextResponse.json(result.preview);
+        return NextResponse.json(result.data);
       }
 
       if (!body.googleDocUrl) {
@@ -72,7 +95,7 @@ export async function POST(request: Request) {
       }
       const result = safeParseDocument(text, "Google Doc");
       if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
-      return NextResponse.json(result.preview);
+      return NextResponse.json(result.data);
     }
 
     const formData = await request.formData().catch(() => null);
@@ -121,7 +144,7 @@ export async function POST(request: Request) {
 
     const result = safeParseDocument(text, file.name);
     if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
-    return NextResponse.json(result.preview);
+    return NextResponse.json(result.data);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "문서를 처리하는 중 오류가 발생했습니다.";
