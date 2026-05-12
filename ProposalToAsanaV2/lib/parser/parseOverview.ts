@@ -28,7 +28,7 @@ export function buildNormalizedData(rawText: string, sourceFileName?: string): N
     benefitText: benefitLines.join("\n"),
     specialIdx,
     eventTitle,
-    artistName: overview.artistName,
+    artistName: overview.artistName || extractArtistFromEventTitle(eventTitle),
     albumName: overview.albumName,
     agency: overview.agency,
     venue: overview.venue,
@@ -347,6 +347,29 @@ function extractEventTitleFallback(lines: string[]): string {
     }
   }
   return lines.find((l) => l.length >= 3) || "";
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// 헬퍼: 이벤트명 첫 부분에서 아티스트명 추출 (테이블에 없을 때 폴백)
+// ──────────────────────────────────────────────────────────────────────────
+
+function extractArtistFromEventTitle(eventTitle: string): string {
+  if (!eventTitle) return "";
+  const title = eventTitle.trim();
+
+  // 아티스트명과 앨범/이벤트 정보를 구분하는 키워드 패턴
+  // 이 패턴이 나오기 직전까지가 아티스트명
+  const SEPARATOR = /\b(THE\s+\d|(\d+)(ST|ND|RD|TH)\b|MINI|FULL|SINGLE|REPACKAGE|DIGITAL|ALBUM|EP\b|OST\b|MEET|FANSIGN|EVENT|CONCERT|LIVE|TOUR)\b|(?<=[^\p{L}]|^)(팬사인회|사인회|팬미팅|영상통화|화상통화|이벤트|미팅|온라인|오프라인)/iu;
+
+  const match = title.match(SEPARATOR);
+  if (match?.index && match.index > 0) {
+    const before = title.slice(0, match.index).trim();
+    if (before.length >= 2) return before;
+  }
+
+  // 구분 키워드가 없으면 첫 번째 공백 이전 단어
+  const firstWord = title.split(/\s+/)[0] ?? "";
+  return firstWord.length >= 2 ? firstWord : "";
 }
 
 // ──────────────────────────────────────────────────────────────────────────
