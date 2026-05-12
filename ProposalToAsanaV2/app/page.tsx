@@ -227,12 +227,22 @@ export default function HomePage() {
     setDerivativeInfo(null);
 
     try {
-      const isDocx = file.name.toLowerCase().endsWith(".docx");
+      const lowerName = file.name.toLowerCase();
+      const isDocx = lowerName.endsWith(".docx");
+      const isTxt  = lowerName.endsWith(".txt");
       let res: Response;
 
       if (isDocx) {
         // .docx: 브라우저에서 텍스트만 추출 → JSON으로 전송 (이미지 포함 대용량 파일 우회)
         const rawText = await extractDocxTextInBrowser(file);
+        res = await fetch("/api/parse-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawText, fileName: file.name })
+        });
+      } else if (isTxt) {
+        // .txt: 브라우저에서 직접 읽어 rawText로 전송
+        const rawText = await file.text();
         res = await fetch("/api/parse-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -583,7 +593,7 @@ export default function HomePage() {
               MAKESTAR 태스크 머신
             </button>
             <div className="flex items-baseline gap-1">
-              <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.89.0</span>
+              <span className="text-ms-accent text-xs font-semibold tracking-wide">v0.89.1</span>
               <span className="text-ms-faint text-xs">·</span>
               <span className="text-ms-muted text-xs">Beta</span>
             </div>
@@ -646,7 +656,7 @@ export default function HomePage() {
                 <div className="text-center py-6">
                   <h2 className="text-2xl font-bold text-ms-text mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
-                    Word, PDF, <s>Google Doc</s>{" "}
+                    Word (.docx), PDF, 텍스트 (.txt), <s>Google Doc</s>{" "}
                     <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
                     을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />

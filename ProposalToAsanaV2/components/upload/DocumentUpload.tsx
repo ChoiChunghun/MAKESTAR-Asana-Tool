@@ -60,14 +60,14 @@ export function DocumentUpload({ disabled = false, onFileSelected, onGoogleDocUr
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
             onChange={(e) => handleFiles(e.target.files)}
             disabled={disabled}
             className="hidden"
           />
           <div className="text-3xl mb-3">📄</div>
           <p className="text-ms-text font-bold mb-1">기획서를 여기에 끌어놓거나 클릭해서 선택하세요</p>
-          <p className="text-ms-muted text-sm">Word (.docx) 또는 PDF 파일 지원</p>
+          <p className="text-ms-muted text-sm">Word (.docx), PDF, 텍스트 (.txt) 파일 지원</p>
         </button>
       ) : (
         <div className="space-y-3">
