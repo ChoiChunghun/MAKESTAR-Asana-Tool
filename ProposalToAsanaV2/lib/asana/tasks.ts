@@ -212,7 +212,7 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_PC, token)
     };
     applyDue(pcPayload, dueFields);
-    applyFollowers(pcPayload, followerGids);
+    applyFollowers(pcPayload, buildDesignFollowers(ctx));
     const pcGid = await createTask(pcPayload, token);
     record(ctx, "pc", pcGid, pcName);
   }
@@ -227,7 +227,7 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_MD, token)
     };
     applyDue(spPayload, dueFields);
-    applyFollowers(spPayload, followerGids);
+    applyFollowers(spPayload, buildDesignFollowers(ctx));
     const spGid = await createTask(spPayload, token);
     record(ctx, "sp", spGid, spName);
   }
@@ -264,7 +264,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_UPDATE, token)
     };
     applyDue(subPayload, dueFields);
-    applyFollowers(subPayload, followerGids);
+    applyFollowers(subPayload, buildDesignFollowers(ctx));
     const subGid = await createTask(subPayload, token);
     record(ctx, "upsub", subGid, upSubName);
   }
@@ -364,7 +364,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   }
 
   // ── 오픈 디자인 서브: 마지막 생성 → Asana 최상단 표시 ───────────────────
-  // followerGids 미적용: 담당자(designerGid)가 이미 assignee이므로 중복 추가 불필요
+  // 생성자 ≠ 디자이너인 경우 생성자를 협업 참여자에 자동 포함
   if (isEnabled(rowMap, "opendesign")) {
     const designPayload: AsanaTaskPayload = {
       name: designName,
@@ -376,6 +376,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
     };
     applyDue(designPayload, dueFields);
+    applyFollowers(designPayload, buildDesignFollowers(ctx));
     const designGid = await createTask(designPayload, token);
     await safeSetEventField(designGid, eventLabels, ctx);
     record(ctx, "opendesign", designGid, designName);
@@ -413,7 +414,7 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_VMD, token)
     };
     applyDue(subPayload, dueFields);
-    applyFollowers(subPayload, followerGids);
+    applyFollowers(subPayload, buildDesignFollowers(ctx));
     const subGid = await createTask(subPayload, token);
     record(ctx, "vmdsub", subGid, subName);
   }
@@ -462,6 +463,20 @@ async function createTask(payload: AsanaTaskPayload, token: string): Promise<str
 /** 협업 참여자가 있으면 payload에 followers 추가 */
 function applyFollowers(payload: AsanaTaskPayload, gids: string[]): void {
   if (gids.length > 0) payload.followers = gids;
+}
+
+/**
+ * 디자인 서브태스크 전용 협업 참여자 목록.
+ * 기본 followerGids에 추가로, 생성자(requesterGid)가 담당자(designerGid)와 다를 경우
+ * 생성자를 자동 포함시켜 진행 상황을 함께 볼 수 있도록 한다.
+ */
+function buildDesignFollowers(ctx: TaskCreateContext): string[] {
+  const { followerGids, requesterGid, designerGid } = ctx;
+  const base = [...followerGids];
+  if (isValidGid(requesterGid) && requesterGid !== designerGid && !base.includes(requesterGid)) {
+    base.push(requesterGid);
+  }
+  return base;
 }
 
 function applyDue(payload: AsanaTaskPayload, due: DueFields): void {
