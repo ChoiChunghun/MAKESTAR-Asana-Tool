@@ -39,8 +39,13 @@ export function buildBenefitDescription(benefits: ParsedItem[]): string {
   return `${html}</body>`;
 }
 
-export function buildUpdateDescription(pcs: ParsedItem[], benefits: ParsedItem[]): string {
-  let html = "<body><strong>자료</strong><ol><li>URL 또는 MAS 위치</li></ol>";
+export function buildUpdateDescription(pcs: ParsedItem[], benefits: ParsedItem[], updateNote?: string): string {
+  let html = "<body>";
+  // 관리자 메모 (날짜별 업데이트 내역 등) — 있을 때만 최상단에 삽입
+  if (updateNote && updateNote.trim()) {
+    html += `<em>${esc(updateNote.trim())}</em>\n\n`;
+  }
+  html += "<strong>자료</strong><ol><li>URL 또는 MAS 위치</li></ol>";
   html += "\n\n<strong>문의</strong><ol><li>블러 강도 <strong>(3)</strong>단계</li><li>(자료 수급 일정)</li></ol>";
   html += "\n\n<strong>공유, 요청</strong><ol><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol>";
   const items = [

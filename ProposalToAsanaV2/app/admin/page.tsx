@@ -23,6 +23,8 @@ type AdminConfig = {
   /** 시트 언어 검수 · 어드민 상품 등록 태스크 전용 협업 참여자 */
   productRegFollowerGids: string[];
   artistDesignerRules: ArtistDesignerRule[];
+  /** 업데이트 태스크 메모 — 날짜별 업데이트 내역 등 (업데이트 서브태스크 설명 최상단에 삽입) */
+  updateNote: string;
   customFieldGids: {
     statusField: string;
     taskTypeField: string;
@@ -59,6 +61,7 @@ const DEFAULT_CONFIG: AdminConfig = {
   followerGids: [],
   productRegFollowerGids: ["1208607027791750"],
   artistDesignerRules: [],
+  updateNote: "",
   customFieldGids: {
     statusField: "1207665965030077",
     taskTypeField: "1213891002087335",
@@ -469,6 +472,19 @@ export default function AdminPage() {
               >
                 + 규칙 추가
               </button>
+            </div>
+
+            {/* 업데이트 태스크 메모 */}
+            <div className="card">
+              <h3 className="text-base font-semibold text-ms-text mb-1">업데이트 태스크 메모</h3>
+              <p className="ms-hint mb-3">업데이트 서브태스크 설명 최상단에 삽입됩니다. 날짜별 업데이트 내역 등을 자유롭게 작성하세요.</p>
+              <textarea
+                rows={5}
+                value={config.updateNote ?? ""}
+                onChange={(e) => setConfig({ ...config, updateNote: e.target.value })}
+                placeholder={"예)\n2026.06.01 - 후드ver. 포토카드 자료 업로드\n2026.06.08 - 악마ver. 포토카드 수정 반영"}
+                className="ms-input font-mono text-xs resize-y"
+              />
             </div>
 
             <div className="card">

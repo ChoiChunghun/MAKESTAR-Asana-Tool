@@ -25,6 +25,8 @@ export type AsanaCreateTasksRequest = {
   artistDesignerMap?: { artistName: string; designerGid: string }[];
   /** 설정 시 파생 모드로 동작 */
   derivative?: DerivativeMode;
+  /** 관리자가 작성한 업데이트 태스크 메모 (날짜별 업데이트 내역 등) */
+  updateNote?: string;
 };
 
 export type CreatedAsanaTask = {

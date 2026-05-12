@@ -22,7 +22,8 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
   const hasMd = photocards.length > 0 || benefits.length > 0;
   const createVmdTask = shouldCreateVmdTask(openContext.eventLabels);
   const createWinnerAnnouncementTask = shouldCreateWinnerTask(openContext.eventLabels);
-  const outputCount = photocards.length + benefits.length;
+  // 업데이트 태스크 수량 = 포토카드 총 종수 (포카 없으면 0 → 업데이트 태스크 비활성)
+  const hasPhotocards = photocards.length > 0;
 
   const previewRows: PreviewTaskRow[] = [
     {
@@ -91,17 +92,17 @@ export function buildPreviewData(data: NormalizedPlanData, now = new Date()): Pa
       indent: 0,
       isParent: true,
       available: true,
-      enabled: hasMd
+      enabled: hasPhotocards   // 포카 없으면 비활성
     },
     {
       key: "upsub",
       label: "└ 업데이트 상세",
-      title: `[${productCode}] 업데이트 / ${outputCount}종`,
+      title: `[${productCode}] 업데이트 / ${photocardTotal}종`,  // 포카 총 종수만 표시
       indent: 1,
       isParent: false,
       parentKey: "up",
       available: true,
-      enabled: hasMd
+      enabled: hasPhotocards   // 포카 없으면 비활성
     },
     {
       key: "open",

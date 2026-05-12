@@ -58,6 +58,7 @@ type TaskCreateContext = {
   productRegFollowerGids: string[]; // 상품 등록 전용 협업 참여자 (시트 언어 검수·어드민 상품 등록)
   eventFieldErrors: string[];    // 이벤트 구분 필드 설정 실패 수집 (태스크 생성은 계속)
   isDerivative: boolean;         // 파생 모드 여부
+  updateNote: string;            // 관리자 설정 — 업데이트 태스크 메모 (날짜별 내역 등)
 };
 
 /** 이벤트 구분 필드 설정 실패 시 에러 메시지를 context에 수집하고 태스크 생성은 계속 진행 */
@@ -143,7 +144,8 @@ export async function createTasksFromPreview(
     followerGids,
     productRegFollowerGids,
     eventFieldErrors: [],
-    isDerivative
+    isDerivative,
+    updateNote: request.updateNote || ""
   };
 
   // ── 생성 순서: 당첨자 선정 → VMD → MD → 업데이트 → 오픈 ──────────────────
@@ -236,7 +238,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
   const { summary } = request.plan;
   const dueFields = getTaskDueFields(request.plan.normalizedData, "update");
   const upName = title(rowMap, "up", `[${summary.productCode}] 업데이트`);
-  const upSubName = title(rowMap, "upsub", `[${summary.productCode}] 업데이트 / ${summary.photocards.length + summary.benefits.length}종`);
+  const upSubName = title(rowMap, "upsub", `[${summary.productCode}] 업데이트 / ${summary.photocardTotal}종`);
 
   // ── 업데이트 부모: 상태(진행) + 태스크 구분 ─────────────────────────────
   const upPayload: AsanaTaskPayload = {
@@ -258,7 +260,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
       name: upSubName,
       parent: upGid,
       assignee: designerGid || undefined,
-      html_notes: buildUpdateDescription(summary.photocards, summary.benefits),
+      html_notes: buildUpdateDescription(summary.photocards, summary.benefits, ctx.updateNote),
       custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_UPDATE, token)
     };
     applyDue(subPayload, dueFields);

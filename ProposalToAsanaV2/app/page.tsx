@@ -297,9 +297,10 @@ export default function HomePage() {
                 designerGid: cfg.designerGid || "",
                 followerGids: cfg.followerGids || [],
                 productRegFollowerGids: cfg.productRegFollowerGids || [],
-                artistDesignerMap: cfg.artistDesignerRules || []
+                artistDesignerMap: cfg.artistDesignerRules || [],
+                updateNote: cfg.updateNote || ""
               };
-            } catch { return { designerGid: "", followerGids: [], productRegFollowerGids: [], artistDesignerMap: [] }; }
+            } catch { return { designerGid: "", followerGids: [], productRegFollowerGids: [], artistDesignerMap: [], updateNote: "" }; }
           })(),
           ...(derivativeInfo
             ? { derivative: { sectionGid: derivativeInfo.sectionGid, suffix: derivativeInfo.suffix } }

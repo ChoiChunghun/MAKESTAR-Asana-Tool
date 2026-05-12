@@ -56,11 +56,14 @@ export function parsePhotocards(data: NormalizedPlanData): ParsedItem[] {
       name = `${name} (${verMatch[1].trim()})`;
     }
 
+    // "사인" 단독 이름 = 사인(서명) 포토카드 → 포카 버전으로 분류 안 함
     if (!name || name.length < 2) name = "포토카드";
+    if (name === "사인") continue;
 
     const existing = seen.get(name);
     if (existing !== undefined) {
-      results[existing].count += count;
+      // 같은 버전이 여러 For. 구간에 중복 등장할 경우 합산하지 않고 MAX를 유지
+      results[existing].count = Math.max(results[existing].count, count);
     } else {
       seen.set(name, results.length);
       results.push({ name, count });
