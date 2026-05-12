@@ -221,7 +221,9 @@ function collectEventTitleLines(lines: string[], startIdx: number, labelKeys: st
   for (let j = startIdx; j < Math.min(startIdx + 6, lines.length); j++) {
     const v = lines[j]?.trim();
     if (!v) continue;
-    if (labelKeys.some((k) => v.replace(/\s+/g, "") === k)) break;
+    const normed = v.replace(/\s+/g, "");
+    // 레이블 키와 완전 일치 (단독 레이블 행) 또는 레이블 키로 시작 (레이블+값 한 줄)하면 중단
+    if (labelKeys.some((k) => normed === k || normed.startsWith(k))) break;
     if (/^\{.*\}$/.test(v)) continue; // 플레이스홀더 제외
     // "N부" 리터럴 플레이스홀더 제외
     if (/^N부\s*\{/.test(v)) continue;
