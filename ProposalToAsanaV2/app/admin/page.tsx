@@ -25,8 +25,6 @@ type AdminConfig = {
   artistDesignerRules: ArtistDesignerRule[];
   /** 업데이트 태스크 메모 — 날짜별 업데이트 내역 등 (업데이트 서브태스크 설명 최상단에 삽입) */
   updateNote: string;
-  /** 메인 페이지 공지 블록 — idle 화면 상단에 노출 */
-  notice: string;
   customFieldGids: {
     statusField: string;
     taskTypeField: string;
@@ -64,7 +62,6 @@ const DEFAULT_CONFIG: AdminConfig = {
   productRegFollowerGids: ["1208607027791750"],
   artistDesignerRules: [],
   updateNote: "",
-  notice: "",
   customFieldGids: {
     statusField: "1207665965030077",
     taskTypeField: "1213891002087335",
@@ -475,19 +472,6 @@ export default function AdminPage() {
               >
                 + 규칙 추가
               </button>
-            </div>
-
-            {/* 메인 페이지 공지 */}
-            <div className="card">
-              <h3 className="text-base font-semibold text-ms-text mb-1">메인 페이지 공지</h3>
-              <p className="ms-hint mb-3">메인 화면 상단에 노출되는 공지 블록입니다. 빈칸이면 표시되지 않습니다.</p>
-              <textarea
-                rows={4}
-                value={config.notice ?? ""}
-                onChange={(e) => setConfig({ ...config, notice: e.target.value })}
-                placeholder={"예)\n0512 업데이트 소식\n\n* 내용내용\n* 내용내용"}
-                className="ms-input font-mono text-xs resize-y"
-              />
             </div>
 
             {/* 업데이트 태스크 메모 */}
