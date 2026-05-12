@@ -207,7 +207,23 @@ export default function AdminPage() {
     const saved = localStorage.getItem(ADMIN_CONFIG_KEY);
     if (saved) {
       try {
-        setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
+        const parsed = JSON.parse(saved) as Partial<AdminConfig>;
+        // 프리미티브 필드는 saved 우선, 배열 필드는 saved 보존 + DEFAULT_CONFIG 신규 항목 자동 추가
+        const merged: AdminConfig = { ...DEFAULT_CONFIG, ...parsed };
+        const arrayFields = [
+          "benefitKeywords", "benefitExcludeKeywords",
+          "pcExcludeKeywords", "handwritingKeywords", "vmdConditionLabels",
+          "followerGids", "productRegFollowerGids"
+        ] as const;
+        for (const field of arrayFields) {
+          const savedArr = parsed[field] as string[] | undefined;
+          if (Array.isArray(savedArr)) {
+            const defaultArr = DEFAULT_CONFIG[field] as string[];
+            const newItems = defaultArr.filter((v) => !savedArr.includes(v));
+            (merged as Record<string, unknown>)[field] = [...savedArr, ...newItems];
+          }
+        }
+        setConfig(merged);
       } catch { /* ignore */ }
     }
   }, []);
