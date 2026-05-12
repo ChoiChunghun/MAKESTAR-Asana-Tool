@@ -669,8 +669,8 @@ export default function HomePage() {
                   onGoogleDocUrl={handleGoogleDocUrl}
                 />
                 {changelog && (
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-950/40 px-5 py-4">
-                    <p className="whitespace-pre-wrap text-sm text-blue-100/90 leading-relaxed">{changelog}</p>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-4">
+                    <p className="whitespace-pre-wrap text-sm text-blue-800 leading-relaxed">{changelog}</p>
                   </div>
                 )}
                 <EventHistory
