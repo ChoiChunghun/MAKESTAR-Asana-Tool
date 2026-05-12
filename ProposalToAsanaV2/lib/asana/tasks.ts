@@ -302,29 +302,33 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   ctx.topLevelTaskGids.push(openGid);
   record(ctx, "open", openGid, openName);
 
-  // ── 오픈 디자인 서브: 태스크 구분 + 이벤트 구분 ─────────────────────────
-  // followerGids 미적용: 담당자(designerGid)가 이미 assignee이므로 중복 추가 불필요
-  if (isEnabled(rowMap, "opendesign")) {
-    const designPayload: AsanaTaskPayload = {
-      name: designName,
-      parent: openGid,
-      assignee: designerGid || undefined,
-      html_notes: isDerivative
-        ? buildSnsOpenDescription(openContext)
-        : buildOpenDescription(openContext),
-      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
-    };
-    applyDue(designPayload, dueFields);
-    const designGid = await createTask(designPayload, token);
-    await safeSetEventField(designGid, eventLabels, ctx);
-    record(ctx, "opendesign", designGid, designName);
-  }
-
   // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생 모드 제외) ─────────────────
+  // ※ 생성 역순 = Asana 표시 순서: 먼저 만든 것이 아래로 내려가므로
+  //   오픈 디자인을 맨 마지막에 생성 → 최상단에 표시됨
   if (!isDerivative) {
     const isYdn = openContext.isYdn;
     // 상품 등록 태스크 전용 follower = 전체 follower + 상품 등록 전담 follower 합산
     const regFollowers = [...new Set([...followerGids, ...productRegFollowerGids])];
+
+    // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
+    if (isEnabled(rowMap, "adminreg")) {
+      const adminRegName = title(
+        rowMap, "adminreg",
+        isYdn
+          ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
+          : `[${summary.productCode}] 어드민 상품 등록`
+      );
+      const adminRegPayload: AsanaTaskPayload = {
+        name: adminRegName,
+        parent: openGid,
+        html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
+        custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+      };
+      applyDue(adminRegPayload, dueFields);   // 오픈 마감일과 동일
+      applyFollowers(adminRegPayload, regFollowers);
+      const adminRegGid = await createTask(adminRegPayload, token);
+      record(ctx, "adminreg", adminRegGid, adminRegName);
+    }
 
     // 시트 언어 검수 (메이크스타 전용, YDN 제외)
     if (!isYdn && isEnabled(rowMap, "sitelang")) {
@@ -355,26 +359,24 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
         await createTask(langPayload, token);
       }
     }
+  }
 
-    // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
-    if (isEnabled(rowMap, "adminreg")) {
-      const adminRegName = title(
-        rowMap, "adminreg",
-        isYdn
-          ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
-          : `[${summary.productCode}] 어드민 상품 등록`
-      );
-      const adminRegPayload: AsanaTaskPayload = {
-        name: adminRegName,
-        parent: openGid,
-        html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
-        custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
-      };
-      applyDue(adminRegPayload, dueFields);   // 오픈 마감일과 동일
-      applyFollowers(adminRegPayload, regFollowers);
-      const adminRegGid = await createTask(adminRegPayload, token);
-      record(ctx, "adminreg", adminRegGid, adminRegName);
-    }
+  // ── 오픈 디자인 서브: 마지막 생성 → Asana 최상단 표시 ───────────────────
+  // followerGids 미적용: 담당자(designerGid)가 이미 assignee이므로 중복 추가 불필요
+  if (isEnabled(rowMap, "opendesign")) {
+    const designPayload: AsanaTaskPayload = {
+      name: designName,
+      parent: openGid,
+      assignee: designerGid || undefined,
+      html_notes: isDerivative
+        ? buildSnsOpenDescription(openContext)
+        : buildOpenDescription(openContext),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+    };
+    applyDue(designPayload, dueFields);
+    const designGid = await createTask(designPayload, token);
+    await safeSetEventField(designGid, eventLabels, ctx);
+    record(ctx, "opendesign", designGid, designName);
   }
 }
 
