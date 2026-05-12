@@ -88,6 +88,8 @@ export default function HomePage() {
   const [derivativeInfo, setDerivativeInfo] = useState<DerivativeInfo | null>(null);
   const [derivativeChecking, setDerivativeChecking] = useState(false);
 
+  const [notice, setNotice] = useState("");
+
   const fileInputKey = useRef(0);
 
   useEffect(() => {
@@ -107,6 +109,10 @@ export default function HomePage() {
           // 서버 설정을 기본, 로컬 설정이 덮어씀 (사용자 커스텀 우선)
           const merged = { ...data.config, ...localObj };
           localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(merged));
+          // 공지는 항상 서버 값 사용 (로컬 오버라이드 없음)
+          if (typeof data.config.notice === "string" && data.config.notice.trim()) {
+            setNotice(data.config.notice.trim());
+          }
         }
       })
       .catch(() => { /* KV 미설정 환경에서는 무시 */ });
@@ -466,6 +472,11 @@ export default function HomePage() {
           <>
             {step === "idle" && (
               <>
+                {notice && (
+                  <div className="card border border-ms-accent/30 bg-ms-canvas px-5 py-4">
+                    <p className="whitespace-pre-wrap text-sm text-ms-text leading-relaxed">{notice}</p>
+                  </div>
+                )}
                 <div className="text-center py-6">
                   <h2 className="text-2xl font-bold text-ms-text mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
