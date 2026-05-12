@@ -42,8 +42,8 @@ export function TokenInput({ token, onTokenChange }: Props) {
           </div>
           <p className="text-ms-muted text-xs mb-3">
             Asana Personal Access Token을 입력하세요.{" "}
-            <a href="https://app.asana.com/0/my-apps" target="_blank" rel="noopener noreferrer" className="text-ms-accent hover:underline">
-              발급 →
+            <a href="https://help.asana.com/s/article/api?language=ko" target="_blank" rel="noopener noreferrer" className="text-ms-accent hover:underline">
+              Asana 토큰 발급 방법 →
             </a>
           </p>
           <div className="relative mb-2">
