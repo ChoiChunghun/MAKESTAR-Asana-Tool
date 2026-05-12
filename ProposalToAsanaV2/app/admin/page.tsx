@@ -13,6 +13,7 @@ type ArtistDesignerRule = { artistName: string; designerGid: string };
 
 type AdminConfig = {
   benefitKeywords: string[];
+  benefitExcludeKeywords: string[];
   pcExcludeKeywords: string[];
   handwritingKeywords: string[];
   vmdConditionLabels: string[];
@@ -49,13 +50,24 @@ type AdminConfig = {
 
 const DEFAULT_CONFIG: AdminConfig = {
   benefitKeywords: [
-    "키링", "인화 사진", "인화사진", "컷", "볼펜", "티켓", "L홀더", "스티커", "코스터", "엽서",
-    "핀버튼", "파우치", "피크", "골트래커", "골 트래커", "키캡", "명찰", "스마트톡",
-    "띠부씰", "손거울", "메모지", "쿠폰", "우표", "뱃지", "카드", "탑로더",
-    "인화 2컷", "인화 4컷", "증명사진", "메시지 카드", "시험지"
+    "키링",
+    "인화 사진", "인화사진",
+    "컷", "볼펜", "티켓", "L홀더",
+    "카드 스티커", "리폼 스티커", "데코 스티커", "판 스티커",
+    "코스터", "엽서", "핀버튼", "파우치", "피크",
+    "골트래커", "골 트래커", "키캡", "명찰", "스마트톡",
+    "띠부씰", "손거울", "메모지", "쿠폰", "우표", "뱃지",
+    "USB 카드", "usb 카드",
+    "탑로더", "포스터",
+    "인화 폴라로이드", "인화폴라로이드",
+    "슬로건",
+    "인화 2컷", "인화2컷", "인화 4컷", "인화4컷",
+    "사인지", "증명사진", "메시지 카드", "시험지",
+    "포토매틱", "편지지", "투명 프레임", "일회용 밴드"
   ],
+  benefitExcludeKeywords: ["보드게임"],
   pcExcludeKeywords: ["참석권", "관람권", "앨범", "이벤트", "키링", "사인", "포스트잇"],
-  handwritingKeywords: ["부적", "상장", "탐정", "메시지", "생일", "프리쿠라", "메세지", "낙서", "행운"],
+  handwritingKeywords: ["부적", "상장", "탐정", "메시지", "생일", "프리쿠라", "메세지", "낙서", "행운", "친필"],
   vmdConditionLabels: ["쇼케이스 초대", "대면", "포토", "오프라인 이벤트", "오프라인 럭키드로우"],
   dueDaysOffset: 7,
   vmdItemCount: 4,
@@ -337,6 +349,12 @@ export default function AdminPage() {
               description="이 키워드가 포함된 줄에서 특전 항목을 추출합니다. 포토카드는 제외됩니다."
               items={config.benefitKeywords}
               onChange={(items) => setConfig({ ...config, benefitKeywords: items })}
+            />
+            <KeywordEditor
+              label="특전 제외 키워드"
+              description="이 키워드가 포함된 줄은 특전 인식 키워드가 있어도 특전으로 파싱하지 않습니다. (예: 보드게임)"
+              items={config.benefitExcludeKeywords}
+              onChange={(items) => setConfig({ ...config, benefitExcludeKeywords: items })}
             />
             <KeywordEditor
               label="포토카드 제외 키워드"

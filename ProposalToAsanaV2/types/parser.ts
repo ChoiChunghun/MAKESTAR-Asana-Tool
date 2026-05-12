@@ -1,3 +1,12 @@
+/** 관리자 설정에서 주입되는 파싱 키워드 오버라이드 */
+export type ParseConfig = {
+  benefitKeywords?: string[];
+  benefitExcludeKeywords?: string[];
+  pcExcludeKeywords?: string[];
+  handwritingKeywords?: string[];
+  vmdConditionLabels?: string[];
+};
+
 export type ParsedItem = {
   name: string;
   count: number;

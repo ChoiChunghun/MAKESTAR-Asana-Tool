@@ -5,7 +5,8 @@ import { extractTextFromGoogleDoc } from "@/lib/document/extractGoogleDoc";
 import { buildNormalizedData } from "@/lib/parser/parseOverview";
 import { buildPreviewData } from "@/lib/parser/buildPreviewData";
 import { buildMultiEventData } from "@/lib/parser/multiEvent";
-import type { ParsedPlanResult } from "@/types/parser";
+import { getAdminConfig } from "@/lib/adminConfig";
+import type { ParseConfig, ParsedPlanResult } from "@/types/parser";
 
 export const runtime = "nodejs";
 
@@ -16,12 +17,12 @@ type ParseResponse = {
 };
 
 // 파서를 안전하게 실행 — 내부 예외가 전체 요청을 망가뜨리지 않도록 격리
-function safeParseDocument(text: string, sourceName: string): { ok: true; data: ParseResponse } | { ok: false; message: string } {
+function safeParseDocument(text: string, sourceName: string, config?: ParseConfig): { ok: true; data: ParseResponse } | { ok: false; message: string } {
   try {
     // 다중 이벤트 감지 시도
     const multiData = buildMultiEventData(text, sourceName);
     if (multiData && multiData.length >= 2) {
-      const events = multiData.map((d) => buildPreviewData(d));
+      const events = multiData.map((d) => buildPreviewData(d, config));
       // 섹션명에 부(部) 접미사 추가
       events.forEach((e) => {
         const label = e.normalizedData.partLabel;
@@ -34,7 +35,7 @@ function safeParseDocument(text: string, sourceName: string): { ok: true; data: 
 
     // 단일 이벤트
     const normalizedData = buildNormalizedData(text, sourceName);
-    const preview = buildPreviewData(normalizedData);
+    const preview = buildPreviewData(normalizedData, config);
     return { ok: true, data: { events: [preview], isMultiEvent: false } };
   } catch (err) {
     const message =
@@ -44,8 +45,33 @@ function safeParseDocument(text: string, sourceName: string): { ok: true; data: 
   }
 }
 
+/** KV admin config → ParseConfig 변환 */
+async function loadParseConfig(): Promise<ParseConfig | undefined> {
+  if (!process.env.KV_REST_API_URL) return undefined;
+  try {
+    const cfg = await getAdminConfig();
+    if (!cfg) return undefined;
+    const pick = <T>(v: unknown, guard: (x: unknown) => x is T): T | undefined =>
+      guard(v) ? v : undefined;
+    const isStrArr = (v: unknown): v is string[] =>
+      Array.isArray(v) && v.every((x) => typeof x === "string");
+    return {
+      benefitKeywords:       pick(cfg.benefitKeywords, isStrArr),
+      benefitExcludeKeywords: pick(cfg.benefitExcludeKeywords, isStrArr),
+      pcExcludeKeywords:     pick(cfg.pcExcludeKeywords, isStrArr),
+      handwritingKeywords:   pick(cfg.handwritingKeywords, isStrArr),
+      vmdConditionLabels:    pick(cfg.vmdConditionLabels, isStrArr),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // 관리자 키워드 설정 로드 (없으면 constants.ts 기본값 사용)
+    const parseConfig = await loadParseConfig();
+
     const contentType = request.headers.get("content-type") || "";
 
     if (contentType.includes("application/json")) {
@@ -70,7 +96,7 @@ export async function POST(request: Request) {
             { status: 422 }
           );
         }
-        const result = safeParseDocument(body.rawText, body.fileName || "문서");
+        const result = safeParseDocument(body.rawText, body.fileName || "문서", parseConfig);
         if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
         return NextResponse.json(result.data);
       }
@@ -93,7 +119,7 @@ export async function POST(request: Request) {
           { status: 422 }
         );
       }
-      const result = safeParseDocument(text, "Google Doc");
+      const result = safeParseDocument(text, "Google Doc", parseConfig);
       if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
       return NextResponse.json(result.data);
     }
@@ -142,7 +168,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = safeParseDocument(text, file.name);
+    const result = safeParseDocument(text, file.name, parseConfig);
     if (!result.ok) return NextResponse.json({ message: result.message }, { status: 500 });
     return NextResponse.json(result.data);
   } catch (error) {

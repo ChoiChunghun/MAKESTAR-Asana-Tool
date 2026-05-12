@@ -1,8 +1,12 @@
-import type { NormalizedPlanData, ParsedItem } from "@/types/parser";
-import { BENEFIT_KEYWORDS, EXCLUDE_PATTERNS_BENEFIT, HANDWRITING_KEYWORDS } from "./constants";
+import type { NormalizedPlanData, ParseConfig, ParsedItem } from "@/types/parser";
+import { BENEFIT_KEYWORDS, EXCLUDE_KEYWORDS_BENEFIT, EXCLUDE_PATTERNS_BENEFIT, HANDWRITING_KEYWORDS } from "./constants";
 import { escapeRegExp, hasKeyword, stopAtNotice } from "./utils";
 
-export function parseBenefits(data: NormalizedPlanData): ParsedItem[] {
+export function parseBenefits(data: NormalizedPlanData, config?: ParseConfig): ParsedItem[] {
+  const keywords = config?.benefitKeywords ?? BENEFIT_KEYWORDS;
+  const excludeKeywords = config?.benefitExcludeKeywords ?? EXCLUDE_KEYWORDS_BENEFIT;
+  const hwKeywords = config?.handwritingKeywords ?? HANDWRITING_KEYWORDS;
+
   const results: ParsedItem[] = [];
   const seen = new Map<string, number>();
   const lines = stopAtNotice(data.benefitLines);
@@ -11,16 +15,17 @@ export function parseBenefits(data: NormalizedPlanData): ParsedItem[] {
     const cell = String(line || "").trim();
     if (!cell) continue;
 
-    const keyword = findBenefitKeyword(cell);
+    const keyword = findBenefitKeyword(cell, keywords);
     if (!keyword) continue;
     if (cell.includes("포토카드")) continue;
+    if (excludeKeywords.some((kw) => cell.includes(kw))) continue;
 
     const item = extractBenefitItem(cell, keyword);
     if (!item) continue;
     if (shouldExclude(cell, item.name, item.count)) continue;
 
     // 원본 줄 전체에서 손그림 키워드 체크 (이름에 없어도 감지)
-    const hasHandwriting = hasKeyword(cell, HANDWRITING_KEYWORDS);
+    const hasHandwriting = hasKeyword(cell, hwKeywords);
     if (hasHandwriting) item.hasHandwriting = true;
 
     const idx = seen.get(item.name);
@@ -36,8 +41,8 @@ export function parseBenefits(data: NormalizedPlanData): ParsedItem[] {
   return results;
 }
 
-function findBenefitKeyword(text: string): string | null {
-  for (const kw of BENEFIT_KEYWORDS) {
+function findBenefitKeyword(text: string, keywords: string[]): string | null {
+  for (const kw of keywords) {
     if (text.includes(kw)) return kw;
   }
   return null;

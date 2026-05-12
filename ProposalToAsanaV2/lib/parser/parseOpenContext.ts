@@ -1,8 +1,8 @@
-import type { NormalizedPlanData, OpenContext, OpenEventLabel } from "@/types/parser";
+import type { NormalizedPlanData, OpenContext, OpenEventLabel, ParseConfig } from "@/types/parser";
 import { NO_WINNER_TASK_LABELS, OPEN_EVENT_LABEL_ORDER, SNS_DATE_NOTICE_LABELS, VMD_FIXED_ITEM_COUNT, VMD_OFFLINE_LABELS } from "./constants";
 import { pushUnique, stopAtNotice } from "./utils";
 
-export function buildOpenContext(data: NormalizedPlanData, productCode: string): OpenContext {
+export function buildOpenContext(data: NormalizedPlanData, productCode: string, config?: ParseConfig): OpenContext {
   const eventLabels = detectOpenEvents(data.eventSourceText);
   const storyCount = countStoryItems(data);
   const hasPromoEvent = String(data.fullText || "").includes("홍보 이벤트");
@@ -184,8 +184,9 @@ export function resolveVmdSubName(productCode: string, venue: string, defaultCou
   return `[${productCode}] VMD / ${total}종`;
 }
 
-export function shouldCreateVmdTask(labels: OpenEventLabel[]): boolean {
-  return VMD_OFFLINE_LABELS.some((l) => labels.includes(l as OpenEventLabel));
+export function shouldCreateVmdTask(labels: OpenEventLabel[], vmdLabels?: string[]): boolean {
+  const targets = vmdLabels ?? VMD_OFFLINE_LABELS;
+  return targets.some((l) => labels.includes(l as OpenEventLabel));
 }
 
 /**

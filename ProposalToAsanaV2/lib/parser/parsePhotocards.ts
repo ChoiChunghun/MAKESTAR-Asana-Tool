@@ -1,8 +1,10 @@
-import type { NormalizedPlanData, ParsedItem } from "@/types/parser";
+import type { NormalizedPlanData, ParseConfig, ParsedItem } from "@/types/parser";
 import { EXCLUDE_KEYWORDS_PC, EXCLUDE_PATTERNS_PC, PC_NAME_PREFIX_STRIP } from "./constants";
 import { stopAtNotice } from "./utils";
 
-export function parsePhotocards(data: NormalizedPlanData): ParsedItem[] {
+export function parsePhotocards(data: NormalizedPlanData, config?: ParseConfig): ParsedItem[] {
+  const excludeKeywords = config?.pcExcludeKeywords ?? EXCLUDE_KEYWORDS_PC;
+
   const results: ParsedItem[] = [];
   const seen = new Map<string, number>();
   const lines = stopAtNotice(data.benefitLines);
@@ -10,7 +12,7 @@ export function parsePhotocards(data: NormalizedPlanData): ParsedItem[] {
   for (let i = 0; i < lines.length; i++) {
     const cell = String(lines[i] || "").trim();
     if (!cell.includes("포토카드")) continue;
-    if (EXCLUDE_KEYWORDS_PC.some((kw) => cell.includes(kw))) continue;
+    if (excludeKeywords.some((kw) => cell.includes(kw))) continue;
     if (EXCLUDE_PATTERNS_PC.some((p) => p.test(cell))) continue;
 
     // count: 총 수량(종) 우선, 없으면 n종 중/랜덤, 없으면 괄호 종, 마지막 fallback

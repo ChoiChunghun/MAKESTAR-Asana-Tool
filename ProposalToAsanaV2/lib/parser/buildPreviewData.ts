@@ -1,26 +1,26 @@
-import type { NormalizedPlanData, ParsedPlanResult, PreviewTaskRow } from "@/types/parser";
+import type { NormalizedPlanData, ParseConfig, ParsedPlanResult, PreviewTaskRow } from "@/types/parser";
 import { buildSectionName, buildDueSummary } from "./parseDeadline";
 import { parseBenefits } from "./parseBenefits";
 import { parsePhotocards } from "./parsePhotocards";
 import { buildOpenContext, resolveVmdSubName, shouldCreateVmdTask, shouldCreateWinnerTask } from "./parseOpenContext";
 import { generateRandomCode } from "./utils";
 
-export function buildPreviewData(data: NormalizedPlanData, now = new Date()): ParsedPlanResult {
+export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig, now = new Date()): ParsedPlanResult {
   const artistName = data.artistName || "";
   const tempCode = artistName
     ? `${artistName} 추후 일괄 변경`
     : "추후 일괄 변경";
 
   const productCode = tempCode;
-  const photocards = parsePhotocards(data);
-  const benefits = parseBenefits(data);
-  const openContext = buildOpenContext(data, productCode);
+  const photocards = parsePhotocards(data, config);
+  const benefits = parseBenefits(data, config);
+  const openContext = buildOpenContext(data, productCode, config);
   const dueSummary = buildDueSummary(data, now);
   const sectionName = buildSectionName(data, productCode, now);
   const photocardTotal = photocards.reduce((s, i) => s + i.count, 0);
   const benefitTotal = benefits.reduce((s, i) => s + i.count, 0);
   const hasMd = photocards.length > 0 || benefits.length > 0;
-  const createVmdTask = shouldCreateVmdTask(openContext.eventLabels);
+  const createVmdTask = shouldCreateVmdTask(openContext.eventLabels, config?.vmdConditionLabels);
   const createWinnerAnnouncementTask = shouldCreateWinnerTask(openContext.eventLabels);
   // 업데이트 태스크 수량 = 포토카드 총 종수 (포카 없으면 0 → 업데이트 태스크 비활성)
   const hasPhotocards = photocards.length > 0;
