@@ -137,13 +137,13 @@ function extractOverviewTable(lines: string[]): OverviewFields {
         // 여러 부(部)가 있을 수 있으므로 다음 줄들을 수집해 합침
         const raw = collectEventTitleLines(scanLines, i + 1, LABEL_KEYS);
         if (raw && !raw.startsWith("{")) {
-          result.eventTitle = raw.replace(/^\d+부\s*/i, "").trim();
+          result.eventTitle = raw.replace(/^\d+\s*부\s*[:：]?\s*/i, "").trim();
           found.add("eventTitle");
         }
       } else if (/이벤트명/.test(norm)) {
         const raw = extractValueAfterLabel(line, "이벤트명");
         if (raw && !raw.startsWith("{")) {
-          result.eventTitle = raw.replace(/^N부\s*/i, "").trim();
+          result.eventTitle = raw.replace(/^N\s*부\s*[:：]?\s*/i, "").trim();
           found.add("eventTitle");
         }
       }
@@ -231,7 +231,8 @@ function collectEventTitleLines(lines: string[], startIdx: number, labelKeys: st
     if (/^\{.*\}$/.test(v)) continue; // 플레이스홀더 제외
     // "N부" 리터럴 플레이스홀더 제외
     if (/^N부\s*\{/.test(v)) continue;
-    parts.push(v.replace(/^\d+부\s*/i, "").trim());
+    // "N부:" 또는 "N 부 :" 접두어 제거 (PDF 스페이스 대응)
+    parts.push(v.replace(/^\d+\s*부\s*[:：]?\s*/i, "").trim());
   }
   return parts.join(" / ");
 }

@@ -29,19 +29,19 @@ export type MultiEventPattern = "A" | "B";
  * 단일 이벤트면 null, Pattern A / B 이면 해당 값을 반환합니다.
  */
 export function detectMultiEventPattern(lines: string[]): MultiEventPattern | null {
-  // Pattern A: 단독 "N부" 행이 2개 이상
-  const standaloneCount = lines.filter((l) => /^\s*[1-9]부\s*$/.test(l.trim())).length;
+  // Pattern A: 단독 "N부" 행이 2개 이상 (PDF 스페이스 대응: "1 부" 포함)
+  const standaloneCount = lines.filter((l) => /^\s*[1-9]\s*부\s*$/.test(l.trim())).length;
   if (standaloneCount >= 2) return "A";
 
-  // Pattern B: 특전 섹션에 "<N부 ...>" 마커
+  // Pattern B: 특전 섹션에 "<N부 ...>" 마커 (PDF 스페이스 대응: "<1 부 >" 포함)
   const hasBenefitMarkers =
-    lines.some((l) => /<[1-9]부[\s>]/.test(l)) &&
+    lines.some((l) => /<[1-9]\s*부[\s>]/.test(l)) &&
     // 오탐 방지: 단순 텍스트 안의 <부> 와 구별 — 마커는 "<숫자부 " 또는 "<숫자부>" 형태
-    lines.filter((l) => /<[1-9]부[\s>]/.test(l)).length >= 2;
+    lines.filter((l) => /<[1-9]\s*부[\s>]/.test(l)).length >= 2;
   if (hasBenefitMarkers) return "B";
 
-  // Pattern B: 필드 값 내 "N부:" 인라인 분리가 2개 이상
-  const inlinePartLines = lines.filter((l) => /^\s*[1-9]부\s*[:：]/.test(l.trim()));
+  // Pattern B: 필드 값 내 "N부:" 인라인 분리가 2개 이상 (PDF 스페이스 대응: "1 부 :" 포함)
+  const inlinePartLines = lines.filter((l) => /^\s*[1-9]\s*부\s*[:：]/.test(l.trim()));
   if (inlinePartLines.length >= 2) return "B";
 
   return null;
@@ -77,8 +77,9 @@ function splitPatternA(lines: string[], sourceFileName?: string): NormalizedPlan
   const partBoundaries: { idx: number; label: string }[] = [];
 
   lines.forEach((l, i) => {
-    if (/^\s*[1-9]부\s*$/.test(l.trim())) {
-      partBoundaries.push({ idx: i, label: l.trim() });
+    if (/^\s*[1-9]\s*부\s*$/.test(l.trim())) {
+      // 라벨 정규화: "1 부" → "1부"
+      partBoundaries.push({ idx: i, label: l.trim().replace(/\s+/g, "") });
     }
   });
 
@@ -153,18 +154,18 @@ function splitPatternB(lines: string[], sourceFileName?: string): NormalizedPlan
 
 /** 부(部) 수를 파악합니다. */
 function detectPartCount(lines: string[]): number {
-  // 특전 마커 우선
+  // 특전 마커 우선 (PDF 스페이스 대응: "<1 부 " 포함)
   const markerParts = new Set<number>();
   lines.forEach((l) => {
-    const m = l.match(/<(\d+)부/);
+    const m = l.match(/<(\d+)\s*부/);
     if (m) markerParts.add(Number(m[1]));
   });
   if (markerParts.size >= 2) return markerParts.size;
 
-  // 인라인 "N부:" 패턴
+  // 인라인 "N부:" 패턴 (PDF 스페이스 대응: "1 부 :" 포함)
   const inlineParts = new Set<number>();
   lines.forEach((l) => {
-    const m = l.trim().match(/^(\d+)부\s*[:：]/);
+    const m = l.trim().match(/^(\d+)\s*부\s*[:：]/);
     if (m) inlineParts.add(Number(m[1]));
   });
   if (inlineParts.size >= 2) return inlineParts.size;
@@ -190,9 +191,21 @@ function extractPerPartEventTitles(lines: string[]): Record<number, string> {
       if (!trimmed) continue;
       if (OVERVIEW_LABEL_KEYS_RE.test(trimmed.replace(/\s+/g, ""))) break;
 
-      const partMatch = trimmed.match(/^(\d+)부\s*[:：]\s*(.*)/);
+      // PDF 스페이스 대응: "1 부 : ..." 포함
+      const partMatch = trimmed.match(/^(\d+)\s*부\s*[:：]\s*(.*)/);
       if (partMatch) {
-        result[Number(partMatch[1])] = partMatch[2].trim();
+        const partNum = Number(partMatch[1]);
+        let titleText = partMatch[2].trim();
+        // 이벤트명이 다음 줄에 이어지는 경우 수집 (PDF에서 긴 제목이 줄 바뀜)
+        for (let k = j + 1; k < Math.min(j + 4, lines.length); k++) {
+          const next = lines[k]?.trim();
+          if (!next) break;
+          if (/^(\d+)\s*부\s*[:：]/.test(next)) break;
+          if (OVERVIEW_LABEL_KEYS_RE.test(next.replace(/\s+/g, ""))) break;
+          // 다음 부분이 소문자로 시작하거나 앞 줄 끝이 이어지는 단어처럼 보이면 합산
+          titleText += " " + next;
+        }
+        result[partNum] = titleText.trim();
       }
     }
     break;
@@ -218,7 +231,8 @@ function extractPerPartDates(
       if (!trimmed) continue;
       if (OVERVIEW_LABEL_KEYS_RE.test(trimmed.replace(/\s+/g, ""))) break;
 
-      const partMatch = trimmed.match(/^(\d+)부\s*[:：]\s*(.*)/);
+      // PDF 스페이스 대응: "1 부 : ..." 포함
+      const partMatch = trimmed.match(/^(\d+)\s*부\s*[:：]\s*(.*)/);
       if (partMatch) {
         const partNum = Number(partMatch[1]);
         // 해당 부의 날짜 텍스트가 다음 줄에 이어질 수 있음 → 같은 부의 뒤 줄 합산
@@ -226,7 +240,7 @@ function extractPerPartDates(
         for (let k = j + 1; k < Math.min(j + 4, lines.length); k++) {
           const next = lines[k]?.trim();
           if (!next) break;
-          if (/^[1-9]부\s*[:：]/.test(next) || OVERVIEW_LABEL_KEYS_RE.test(next.replace(/\s+/g, ""))) break;
+          if (/^[1-9]\s*부\s*[:：]/.test(next) || OVERVIEW_LABEL_KEYS_RE.test(next.replace(/\s+/g, ""))) break;
           dateText += " " + next;
         }
         result[partNum] = parseApplicationPeriodSimple(dateText);
@@ -253,7 +267,8 @@ function extractPerPartWinner(lines: string[]): Record<number, string | null> {
       if (!trimmed) continue;
       if (OVERVIEW_LABEL_KEYS_RE.test(trimmed.replace(/\s+/g, ""))) break;
 
-      const partMatch = trimmed.match(/^(\d+)부\s*[:：]\s*(.*)/);
+      // PDF 스페이스 대응: "1 부 : ..." 포함
+      const partMatch = trimmed.match(/^(\d+)\s*부\s*[:：]\s*(.*)/);
       if (partMatch) {
         const partNum = Number(partMatch[1]);
         const iso = extractIsoFromStr(partMatch[2].trim());
@@ -282,7 +297,8 @@ function splitBenefitsByPart(
   const benefitLines = specialIdx >= 0 ? lines.slice(specialIdx) : [];
 
   for (const line of benefitLines) {
-    const markerMatch = line.match(/<(\d+)부/);
+    // PDF 스페이스 대응: "<1 부 ..." 포함
+    const markerMatch = line.match(/<(\d+)\s*부/);
     if (markerMatch) {
       currentPart = Number(markerMatch[1]);
       if (!parts.has(currentPart)) parts.set(currentPart, []);
