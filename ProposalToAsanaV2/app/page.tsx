@@ -88,6 +88,8 @@ export default function HomePage() {
   const [derivativeInfo, setDerivativeInfo] = useState<DerivativeInfo | null>(null);
   const [derivativeChecking, setDerivativeChecking] = useState(false);
 
+  const [changelog, setChangelog] = useState("");
+
   const fileInputKey = useRef(0);
 
   useEffect(() => {
@@ -107,6 +109,10 @@ export default function HomePage() {
           // 서버 설정을 기본, 로컬 설정이 덮어씀 (사용자 커스텀 우선)
           const merged = { ...data.config, ...localObj };
           localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(merged));
+          // changelog는 항상 서버 값 사용
+          if (typeof data.config.changelog === "string" && data.config.changelog.trim()) {
+            setChangelog(data.config.changelog.trim());
+          }
         }
       })
       .catch(() => { /* KV 미설정 환경에서는 무시 */ });
@@ -481,6 +487,11 @@ export default function HomePage() {
                   onFileSelected={handleFileSelected}
                   onGoogleDocUrl={handleGoogleDocUrl}
                 />
+                {changelog && (
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-950/40 px-5 py-4">
+                    <p className="whitespace-pre-wrap text-sm text-blue-100/90 leading-relaxed">{changelog}</p>
+                  </div>
+                )}
                 <EventHistory
                   history={history}
                   token={token}

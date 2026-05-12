@@ -25,6 +25,8 @@ type AdminConfig = {
   artistDesignerRules: ArtistDesignerRule[];
   /** 업데이트 태스크 메모 — 날짜별 업데이트 내역 등 (업데이트 서브태스크 설명 최상단에 삽입) */
   updateNote: string;
+  /** 서비스 업데이트 내역 — 메인 파일 업로드 아래 파란 박스에 노출 */
+  changelog: string;
   customFieldGids: {
     statusField: string;
     taskTypeField: string;
@@ -62,6 +64,7 @@ const DEFAULT_CONFIG: AdminConfig = {
   productRegFollowerGids: ["1208607027791750"],
   artistDesignerRules: [],
   updateNote: "",
+  changelog: "",
   customFieldGids: {
     statusField: "1207665965030077",
     taskTypeField: "1213891002087335",
@@ -472,6 +475,19 @@ export default function AdminPage() {
               >
                 + 규칙 추가
               </button>
+            </div>
+
+            {/* 서비스 업데이트 내역 */}
+            <div className="card">
+              <h3 className="text-base font-semibold text-ms-text mb-1">서비스 업데이트 내역</h3>
+              <p className="ms-hint mb-3">메인 화면 파일 업로드 아래 파란 박스에 표시됩니다. 빈칸이면 박스가 숨겨집니다.</p>
+              <textarea
+                rows={5}
+                value={config.changelog ?? ""}
+                onChange={(e) => setConfig({ ...config, changelog: e.target.value })}
+                placeholder={"예)\n0512 업데이트 소식\n\n* 내용내용\n* 내용내용"}
+                className="ms-input font-mono text-xs resize-y"
+              />
             </div>
 
             {/* 업데이트 태스크 메모 */}
