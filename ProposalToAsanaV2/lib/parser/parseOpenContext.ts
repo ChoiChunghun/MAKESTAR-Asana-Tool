@@ -179,7 +179,7 @@ export function detectVenues(venue: string): VenueKey[] {
 /** 진행장소에 따라 VMD 서브태스크 이름 결정 (복수 장소 합산) */
 export function resolveVmdSubName(productCode: string, venue: string, defaultCount: number): string {
   const venues = detectVenues(venue);
-  if (venues.length === 0) return `[${productCode}] VMD / (${defaultCount})종`;
+  if (venues.length === 0) return `[${productCode}] VMD / ${defaultCount}종`;
   const total = venues.reduce((s, v) => s + VENUE_COUNT[v], 0);
   return `[${productCode}] VMD / ${total}종`;
 }
