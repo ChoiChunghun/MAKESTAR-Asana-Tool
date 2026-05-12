@@ -656,7 +656,7 @@ export default function HomePage() {
                 <div className="text-center py-6">
                   <h2 className="text-2xl font-bold text-ms-text mb-2">아사나 태스크 생성기</h2>
                   <p className="text-ms-muted">
-                    Word (.docx), PDF, 텍스트 (.txt), <s>Google Doc</s>{" "}
+                    Word (.docx), 텍스트 (.txt), PDF, <s>Google Doc</s>{" "}
                     <span className="text-ms-accent text-xs font-medium">[보안 : Beta에서 제외]</span>
                     을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />
