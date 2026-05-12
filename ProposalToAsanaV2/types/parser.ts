@@ -98,6 +98,10 @@ export type DueSummary = {
   vmd: DueFields;
   winner: DueFields;
   text: string;
+  /** 실제 이벤트 날짜 (응모 시작·종료·당첨자 발표) */
+  eventDatesText: string;
+  /** 태스크별 계산된 마감일 */
+  taskDatesText: string;
 };
 
 export type ParsedPlanSummary = {

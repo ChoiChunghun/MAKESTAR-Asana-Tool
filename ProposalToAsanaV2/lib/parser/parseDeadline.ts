@@ -90,24 +90,58 @@ export function buildDueSummary(data: NormalizedPlanData, now = new Date()): Due
   const vmd = getTaskDueFields(data, "vmd", now);
   const winner = getWinnerDueFields(data, now);
 
-  const lines: string[] = [];
-  if (data.applicationStartIso) lines.push(`- 응모 시작일: ${data.applicationStartIso}`);
-  lines.push(deadlineIso ? `- 응모 종료일: ${deadlineIso}` : "- 응모 종료일: 찾지 못함");
-  if (winnerAnnouncementIso) lines.push(`- 당첨자 발표일: ${winnerAnnouncementIso}`);
-  lines.push(`- 오픈 (응모 시작일 13:00): ${formatDue(open)}`);
-  lines.push(`- MD: ${formatDue(md)}`);
-  lines.push(`- 업데이트: ${formatDue(update)}`);
-  lines.push(`- VMD: ${formatDue(vmd)}`);
-  lines.push(`- 당첨자 선정: ${formatDue(winner)}`);
+  // ── 실제 이벤트 날짜 ─────────────────────────────────────────────────────
+  const eventLines: string[] = [];
+  if (data.applicationStartIso) {
+    eventLines.push(`- 응모 시작일: ${formatIso(data.applicationStartIso)}`);
+  }
+  eventLines.push(
+    deadlineIso
+      ? `- 응모 종료일: ${formatIso(deadlineIso)}`
+      : "- 응모 종료일: 찾지 못함"
+  );
+  if (winnerAnnouncementIso) {
+    eventLines.push(`- 당첨자 발표일: ${formatIso(winnerAnnouncementIso)}`);
+  }
 
-  return { deadlineIso, winnerAnnouncementIso, open, md, update, vmd, winner, text: lines.join("\n") };
+  // ── 태스크 마감일 ─────────────────────────────────────────────────────────
+  const taskLines: string[] = [
+    `- 오픈 (응모 시작일 13:00): ${formatDue(open)}`,
+    `- MD: ${formatDue(md)}`,
+    `- 업데이트: ${formatDue(update)}`,
+    `- VMD: ${formatDue(vmd)}`,
+    `- 당첨자 선정: ${formatDue(winner)}`,
+  ];
+
+  const allLines = [...eventLines, ...taskLines];
+
+  return {
+    deadlineIso,
+    winnerAnnouncementIso,
+    open, md, update, vmd, winner,
+    text: allLines.join("\n"),
+    eventDatesText: eventLines.join("\n"),
+    taskDatesText: taskLines.join("\n"),
+  };
 }
 
 // ── 내부 유틸 ─────────────────────────────────────────────────────────────
 
+/** ISO → YYYY.MM.DD 또는 YYYY.MM.DD HH:MM KST */
+function formatIso(iso: string | null | undefined): string {
+  if (!iso) return "(없음)";
+  const dateStr = iso.slice(0, 10).replace(/-/g, ".");
+  // datetime (T 포함) 인 경우 시간 추출
+  if (iso.length > 10 && iso[10] === "T") {
+    const time = iso.slice(11, 16);
+    return `${dateStr} ${time} KST`;
+  }
+  return dateStr;
+}
+
 function formatDue(f: DueFields): string {
-  if (f.due_at) return String(f.due_at).replace("T", " ").replace(":00+09:00", " KST");
-  if (f.due_on) return String(f.due_on);
+  if (f.due_at) return formatIso(String(f.due_at));
+  if (f.due_on) return formatIso(String(f.due_on));
   return "(없음)";
 }
 

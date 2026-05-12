@@ -335,6 +335,7 @@ function findNextNonEmptyValue(lines: string[], startIdx: number, labelKeys: str
 }
 
 function extractEventTitleFallback(lines: string[]): string {
+  // ① 레이블 패턴 ("이벤트명 : ...")
   const labelPatterns = [
     /이벤트\s*명\s*[:：]?\s*(.+)$/i,
     /행사\s*명\s*[:：]?\s*(.+)$/i,
@@ -346,7 +347,22 @@ function extractEventTitleFallback(lines: string[]): string {
       if (match?.[1]?.trim()) return match[1].trim();
     }
   }
-  return lines.find((l) => l.length >= 3) || "";
+
+  // ② 문서 상단에서 "~~~ Event" 패턴 탐색
+  // 문서 최상단 20줄 이내에서 "Event"로 끝나거나 "Event"가 포함된 제목 줄을 찾아
+  // 해당 줄까지를 이벤트명으로 합산 (빈 줄 전까지)
+  const topLines = lines.slice(0, 20).filter((l) => l.trim());
+  const eventLineIdx = topLines.findIndex((l) =>
+    /\bEvent\b/i.test(l) && l.trim().length >= 5
+  );
+  if (eventLineIdx >= 0) {
+    // eventLineIdx 포함, 그 이전의 비어있지 않은 연속 줄들을 묶어 이벤트명으로
+    const titleParts = topLines.slice(0, eventLineIdx + 1);
+    return titleParts.join(" ").trim();
+  }
+
+  // ③ 아무것도 없으면 첫 번째 유효한 줄
+  return lines.find((l) => l.trim().length >= 3) || "";
 }
 
 // ──────────────────────────────────────────────────────────────────────────
