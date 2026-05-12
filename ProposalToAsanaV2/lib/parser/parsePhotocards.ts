@@ -49,6 +49,13 @@ export function parsePhotocards(data: NormalizedPlanData): ParsedItem[] {
       name = name.replace(pattern, "").trim();
     }
 
+    // 버전 구분자 보존 — "(천사 ver.)" / "(악마 ver.)" 등이 원본 행에 있으면
+    // 이름에 포함시켜 동일 이름으로 합산되지 않도록 분리한다
+    const verMatch = cell.match(/\(\s*([^)]*ver\.?[^)]*)\s*\)/i);
+    if (verMatch) {
+      name = `${name} (${verMatch[1].trim()})`;
+    }
+
     if (!name || name.length < 2) name = "포토카드";
 
     const existing = seen.get(name);

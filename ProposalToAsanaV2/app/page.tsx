@@ -436,7 +436,10 @@ export default function HomePage() {
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
         {step === "done" ? (
           <div className="card text-center py-12">
-            <div className="text-5xl mb-4">🎉</div>
+            <div className="flex items-end justify-center gap-4 mb-2">
+              <img src="/meety.png" alt="meety" className="w-36 h-auto" />
+              <img src="/cally.png" alt="cally" className="w-36 h-auto" />
+            </div>
             <h2 className="text-2xl font-bold text-ms-text mb-2">생성 완료!</h2>
             <p className="text-ms-muted mb-6">
               총 <strong className="text-ms-text">{createdCount}개</strong>의 태스크가 생성되었습니다.
