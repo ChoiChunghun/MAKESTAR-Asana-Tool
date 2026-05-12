@@ -95,7 +95,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [config, setConfig] = useState<AdminConfig>(DEFAULT_CONFIG);
-  const [activeTab, setActiveTab] = useState<"parsing" | "tasks" | "fields" | "history">("parsing");
+  const [activeTab, setActiveTab] = useState<"parsing" | "tasks" | "fields" | "changelog" | "history">("parsing");
   const [savedMsg, setSavedMsg] = useState("");
 
   // 커스텀 필드 조회
@@ -290,10 +290,11 @@ export default function AdminPage() {
   }
 
   const tabs = [
-    { id: "parsing" as const,  label: "파싱 조건" },
-    { id: "tasks"   as const,  label: "태스크 설정" },
-    { id: "fields"  as const,  label: "커스텀 필드 GID" },
-    { id: "history" as const,  label: "생성 이력" }
+    { id: "parsing"   as const, label: "파싱 조건" },
+    { id: "tasks"     as const, label: "태스크 설정" },
+    { id: "fields"    as const, label: "커스텀 필드 GID" },
+    { id: "changelog" as const, label: "서비스 업데이트" },
+    { id: "history"   as const, label: "생성 이력" }
   ];
 
   return (
@@ -477,19 +478,6 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* 서비스 업데이트 내역 */}
-            <div className="card">
-              <h3 className="text-base font-semibold text-ms-text mb-1">서비스 업데이트 내역</h3>
-              <p className="ms-hint mb-3">메인 화면 파일 업로드 아래 파란 박스에 표시됩니다. 빈칸이면 박스가 숨겨집니다.</p>
-              <textarea
-                rows={5}
-                value={config.changelog ?? ""}
-                onChange={(e) => setConfig({ ...config, changelog: e.target.value })}
-                placeholder={"예)\n0512 업데이트 소식\n\n* 내용내용\n* 내용내용"}
-                className="ms-input font-mono text-xs resize-y"
-              />
-            </div>
-
             {/* 업데이트 태스크 메모 */}
             <div className="card">
               <h3 className="text-base font-semibold text-ms-text mb-1">업데이트 태스크 메모</h3>
@@ -657,6 +645,32 @@ export default function AdminPage() {
           </div>
         )}
 
+        {activeTab === "changelog" && (
+          <div className="space-y-4">
+            <div className="card">
+              <h3 className="text-base font-semibold text-ms-text mb-1">서비스 업데이트 내역</h3>
+              <p className="ms-hint mb-3">메인 화면 파일 업로드 아래 파란 박스에 표시됩니다. 빈칸이면 박스가 숨겨집니다.</p>
+              <textarea
+                rows={8}
+                value={config.changelog ?? ""}
+                onChange={(e) => setConfig({ ...config, changelog: e.target.value })}
+                placeholder={"예)\n0512 업데이트 소식\n\n* 내용내용\n* 내용내용"}
+                className="ms-input font-mono text-sm resize-y"
+              />
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button type="button" onClick={saveToServer} className="btn px-6 py-2.5 border border-yellow-600 text-yellow-400 hover:bg-yellow-600/10">
+                서버에 저장
+              </button>
+              {serverSaveMsg && (
+                <span className={`text-sm ${serverSaveMsg.includes("저장되었습니다") ? "text-yellow-400" : "text-red-400"}`}>
+                  {serverSaveMsg}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === "history" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -756,7 +770,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {activeTab !== "history" && (
+        {activeTab !== "history" && activeTab !== "changelog" && (
         <div className="flex items-center gap-3 mt-8 flex-wrap">
           <button type="button" onClick={saveConfig} className="btn-accent px-6 py-2.5">
             저장
