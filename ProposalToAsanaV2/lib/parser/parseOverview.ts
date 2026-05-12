@@ -381,7 +381,9 @@ function extractArtistFromEventTitle(eventTitle: string): string {
 
   // 아티스트명과 앨범/이벤트 정보를 구분하는 키워드 패턴
   // 이 패턴이 나오기 직전까지가 아티스트명
-  const SEPARATOR = /\b(THE\s+\d|(\d+)(ST|ND|RD|TH)\b|MINI|FULL|SINGLE|REPACKAGE|DIGITAL|ALBUM|EP\b|OST\b|MEET|FANSIGN|EVENT|CONCERT|LIVE|TOUR)\b|(?<=[^\p{L}]|^)(팬사인회|사인회|팬미팅|영상통화|화상통화|이벤트|미팅|온라인|오프라인)/iu;
+  // \bTHE\s+\d 는 trailing \b 없이 독립 분기로 처리
+  // ("NEXZ The 2nd..." 에서 "2nd"의 \b가 실패해 "NEXZ The"가 추출되는 버그 방지)
+  const SEPARATOR = /(?:\bTHE\s+\d|\b(?:(?:\d+)(?:ST|ND|RD|TH)|MINI|FULL|SINGLE|REPACKAGE|DIGITAL|ALBUM|EP|OST|MEET|FANSIGN|EVENT|CONCERT|LIVE|TOUR)\b)|(?<=[^\p{L}]|^)(?:팬사인회|사인회|팬미팅|영상통화|화상통화|이벤트|미팅|온라인|오프라인)/iu;
 
   const match = title.match(SEPARATOR);
   if (match?.index && match.index > 0) {
