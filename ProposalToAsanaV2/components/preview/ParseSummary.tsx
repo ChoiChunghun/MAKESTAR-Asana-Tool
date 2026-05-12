@@ -69,10 +69,8 @@ export function ParseSummary({ summary }: Props) {
       ? [...benefits.map((b) => `${b.name}  ${b.count}종`), `총 ${summary.benefitTotal}종`]
       : [];
 
-  // VMD 생성 – 공간명 표기
-  const vmdValue = summary.createVmdTask
-    ? `✓ ${summary.venue || "생성"}`
-    : "✗ 미생성";
+  // VMD 생성 – 알려진 장소명만 표기, 미등록 장소는 "생성"으로만 표시
+  const vmdValue = summary.createVmdTask ? "✓ 생성" : "✗ 미생성";
 
   type SummaryRow = { label: string; value: ReactNode };
 
