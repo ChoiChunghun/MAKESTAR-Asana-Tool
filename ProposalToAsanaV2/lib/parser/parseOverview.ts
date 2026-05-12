@@ -14,7 +14,7 @@ export function buildNormalizedData(rawText: string, sourceFileName?: string): N
   const overview = extractOverviewTable(lines);
 
   const specialIdx = lines.findIndex((line) =>
-    /II\.\s*이벤트\s*특전|메이크스타\s*특전|이벤트\s*특전/.test(line)
+    /II\.\s*이벤트\s*특전|메이크스타\s*특전|이벤트\s*특전|판매\s*특전/.test(line)
   );
   const benefitLines = specialIdx >= 0 ? lines.slice(specialIdx) : [];
 
