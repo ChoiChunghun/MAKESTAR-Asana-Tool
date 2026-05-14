@@ -74,6 +74,23 @@ type EventState = {
   productCodeOverride: string;
 };
 
+function normalizeDerivativePreviewTitle(title: string): string {
+  return title
+    .replace(/^\[([^\]]+?)(?:_(?:CN|NAEU|APAC|JP))?\]/, "[$1]")
+    .replace(/(\])\s*SNS\s+오픈\s*디자인$/, "$1 오픈 디자인")
+    .replace(/(\])\s*SNS\s+오픈$/, "$1 오픈");
+}
+
+function applyDerivativePreviewTitle(row: PreviewTaskRow, suffix?: DerivativeInfo["suffix"]): PreviewTaskRow {
+  let title = normalizeDerivativePreviewTitle(row.title);
+  if (!suffix) return { ...row, title };
+
+  title = title.replace(/^\[([^\]]+)\]/, (_, code) => `[${code}${suffix}]`);
+  if (row.key === "open") title = title.replace(/(\])\s*오픈$/, "$1 SNS 오픈");
+  if (row.key === "opendesign") title = title.replace(/(\])\s*오픈\s*디자인$/, "$1 SNS 오픈 디자인");
+  return { ...row, title };
+}
+
 export default function HomePage() {
   const [token, setToken] = useState("");
   const [step, setStep] = useState<Step>("idle");
@@ -146,6 +163,11 @@ export default function HomePage() {
     }
   }
 
+  function setActiveRowsForDerivative(suffix?: DerivativeInfo["suffix"]) {
+    const currentRows = isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? []) : rows;
+    setActiveRows(currentRows.map((row) => applyDerivativePreviewTitle(row, suffix)));
+  }
+
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) setToken(saved);
@@ -198,6 +220,7 @@ export default function HomePage() {
   async function checkDerivativeMode(pgid: string, prodCode: string, tok: string) {
     if (!pgid || !prodCode || !tok || prodCode.includes("추후 일괄 변경")) {
       setDerivativeInfo(null);
+      setActiveRowsForDerivative(undefined);
       return;
     }
     setDerivativeChecking(true);
@@ -209,22 +232,33 @@ export default function HomePage() {
       const data = await res.json();
       if (data.isDerivative) {
         setDerivativeInfo({ sectionGid: data.sectionGid, sectionName: data.sectionName, suffix: data.suffix });
+        const derivativeRows = (isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? []) : rows).map((r) =>
+          applyDerivativePreviewTitle(r, data.suffix)
+        );
         // 파생 모드: 생성하지 않는 태스크 + 기본 off 태스크 자동 체크 해제
         const DERIVATIVE_DEFAULT_OFF = ["winner", "up", "upsub", "sitelang", "adminreg"];
         setActiveRows(
-          (isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? []) : rows).map((r) =>
+          derivativeRows.map((r) =>
             DERIVATIVE_DEFAULT_OFF.includes(r.key) ? { ...r, enabled: false } : r
           )
         );
       } else {
         setDerivativeInfo(null);
+        setActiveRowsForDerivative(undefined);
       }
     } catch {
       setDerivativeInfo(null);
+      setActiveRowsForDerivative(undefined);
     } finally {
       setDerivativeChecking(false);
     }
   }
+
+  useEffect(() => {
+    if (!isMultiEvent || !token || !projectGid || !activePlan || step !== "preview") return;
+    const code = activeProductCode.trim() || activePlan.summary.productCode;
+    checkDerivativeMode(projectGid, code, token);
+  }, [activeEventIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleFileSelected(file: File) {
     setSelectedFile(file.name);
