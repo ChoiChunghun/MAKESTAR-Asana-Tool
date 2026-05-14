@@ -105,12 +105,10 @@ export function buildSnsOpenDescription(ctx: OpenContext): string {
     "<em>*불필요한 내용은 삭제하셔도 좋습니다!</em>",
     `<strong>기획서</strong><ol><li>${planLink}</li></ol>`,
     "<strong>자료</strong><ol><li>URL 또는 MAS 위치</li></ol>",
-    `<strong>문의</strong><ol>` +
-      `<li>업로드 채널 (선택) :<ol type="a">` +
-      `<li>Instagram</li><li>X</li><li>Xiaohongshu</li><li>Weibo</li><li>VK</li>` +
-      `</ol></li>` +
-      `<li>포카, 특전 블러 노출 여부 : <strong>X</strong></li>` +
-      `</ol>`,
+    "<strong>문의</strong><ol>" +
+      "<li>업로드 채널 (선택) : Instagram / X / Xiaohongshu / Weibo / VK</li>" +
+      "<li>포카, 특전 블러 노출 여부 : X</li>" +
+      "</ol>",
     "<strong>공유, 요청</strong><ol><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol>",
     `<strong>필요한 산출물</strong><ol>${snsOutputItems}</ol>`,
     "<em>*더 필요한 산출물을 추가, 사용하지 않는 산출물은 삭제해주세요!</em>"
