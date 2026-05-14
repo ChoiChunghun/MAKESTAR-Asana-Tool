@@ -4,7 +4,7 @@ import { hasKeyword } from "./utils";
 import { detectVenues, VENUE_DISPLAY, type VenueKey } from "./parseOpenContext";
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 export function buildPhotocardDescription(pcs: ParsedItem[]): string {
@@ -304,7 +304,7 @@ export function buildAdminRegDescription(): string {
     `<li>기타 등록 시 참고할 특이사항을 남겨주세요! 특히나 디폴트 옵션에서 변경 필요한 부분은 오류 방지를 위해 개별적으로 노티해주세요.` +
     `<ol type="a">` +
     `<li>예: 응모권은 멤버별이 아닌 단건으로 등록 바랍니다.</li>` +
-    `<li>예: 수량 제안 노출 여부는 &#x201C;노출&#x201D;로 해주세요.</li>` +
+    `<li>예: 수량 제안 노출 여부는 "노출"로 해주세요.</li>` +
     `</ol></li>` +
     `</ol>` +
     `</body>`
