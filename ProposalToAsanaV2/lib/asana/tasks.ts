@@ -315,62 +315,60 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   ctx.topLevelTaskGids.push(openGid);
   record(ctx, "open", openGid, openName);
 
-  // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생 모드 제외) ─────────────────
+  // ── 상품 등록 관련 서브태스크 ───────────────────────────────────────────
   // ※ 생성 역순 = Asana 표시 순서: 먼저 만든 것이 아래로 내려가므로
   //   오픈 디자인을 맨 마지막에 생성 → 최상단에 표시됨
-  if (!isDerivative) {
-    const isYdn = openContext.isYdn;
-    // 상품 등록 태스크 전용 follower = 전체 follower + 상품 등록 전담 follower 합산
-    const regFollowers = [...new Set([...followerGids, ...productRegFollowerGids])];
+  const isYdn = openContext.isYdn;
+  // 상품 등록 태스크 전용 follower = 전체 follower + 상품 등록 전담 follower 합산
+  const regFollowers = [...new Set([...followerGids, ...productRegFollowerGids])];
 
-    // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
-    if (isEnabled(rowMap, "adminreg")) {
-      const adminRegName = title(
-        rowMap, "adminreg",
-        isYdn
-          ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
-          : `[${summary.productCode}] 어드민 상품 등록`
-      );
-      const adminRegPayload: AsanaTaskPayload = {
-        name: adminRegName,
-        parent: openGid,
-        html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
-        custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+  // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
+  if (isEnabled(rowMap, "adminreg")) {
+    const adminRegName = title(
+      rowMap, "adminreg",
+      isYdn
+        ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
+        : `[${summary.productCode}] 어드민 상품 등록`
+    );
+    const adminRegPayload: AsanaTaskPayload = {
+      name: adminRegName,
+      parent: openGid,
+      html_notes: isYdn ? buildYdnAdminRegDescription() : buildAdminRegDescription(),
+      custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
+    };
+    applyDue(adminRegPayload, dueFields);   // 오픈 마감일과 동일
+    applyFollowers(adminRegPayload, regFollowers);
+    const adminRegGid = await createTask(adminRegPayload, token);
+    record(ctx, "adminreg", adminRegGid, adminRegName);
+  }
+
+  // 시트 언어 검수 (메이크스타 전용, YDN 제외)
+  if (!isYdn && isEnabled(rowMap, "sitelang")) {
+    const siteLangName = title(rowMap, "sitelang", `[${summary.productCode}] 시트 언어 검수`);
+    const siteLangPayload: AsanaTaskPayload = {
+      name: siteLangName,
+      parent: openGid,
+      html_notes: buildSiteLangDescription()
+      // 태스크 구분 없음 (상품 등록 workflow 담당자가 처리)
+    };
+    applyDue(siteLangPayload, dueFields);   // 오픈 마감일과 동일
+    applyFollowers(siteLangPayload, regFollowers);
+    const siteLangGid = await createTask(siteLangPayload, token);
+    record(ctx, "sitelang", siteLangGid, siteLangName);
+
+    // 언어별 하위 태스크 (자동 생성, 별도 체크박스 없음)
+    const langSubTasks = [
+      `[${summary.productCode}] 영어 시트 검수`,
+      `[${summary.productCode}] 중국어(간체) 시트 검수`,
+      `[${summary.productCode}] 일본어 시트 검수`
+    ];
+    for (const langName of langSubTasks) {
+      const langPayload: AsanaTaskPayload = {
+        name: langName,
+        parent: siteLangGid
       };
-      applyDue(adminRegPayload, dueFields);   // 오픈 마감일과 동일
-      applyFollowers(adminRegPayload, regFollowers);
-      const adminRegGid = await createTask(adminRegPayload, token);
-      record(ctx, "adminreg", adminRegGid, adminRegName);
-    }
-
-    // 시트 언어 검수 (메이크스타 전용, YDN 제외)
-    if (!isYdn && isEnabled(rowMap, "sitelang")) {
-      const siteLangName = title(rowMap, "sitelang", `[${summary.productCode}] 시트 언어 검수`);
-      const siteLangPayload: AsanaTaskPayload = {
-        name: siteLangName,
-        parent: openGid,
-        html_notes: buildSiteLangDescription()
-        // 태스크 구분 없음 (상품 등록 workflow 담당자가 처리)
-      };
-      applyDue(siteLangPayload, dueFields);   // 오픈 마감일과 동일
-      applyFollowers(siteLangPayload, regFollowers);
-      const siteLangGid = await createTask(siteLangPayload, token);
-      record(ctx, "sitelang", siteLangGid, siteLangName);
-
-      // 언어별 하위 태스크 (자동 생성, 별도 체크박스 없음)
-      const langSubTasks = [
-        `[${summary.productCode}] 영어 시트 검수`,
-        `[${summary.productCode}] 중국어(간체) 시트 검수`,
-        `[${summary.productCode}] 일본어 시트 검수`
-      ];
-      for (const langName of langSubTasks) {
-        const langPayload: AsanaTaskPayload = {
-          name: langName,
-          parent: siteLangGid
-        };
-        applyFollowers(langPayload, regFollowers);
-        await createTask(langPayload, token);
-      }
+      applyFollowers(langPayload, regFollowers);
+      await createTask(langPayload, token);
     }
   }
 
@@ -526,4 +524,3 @@ function record(ctx: TaskCreateContext, key: string, gid: string, name: string):
     url: `https://app.asana.com/0/${ctx.projectGid}/${gid}`
   });
 }
-

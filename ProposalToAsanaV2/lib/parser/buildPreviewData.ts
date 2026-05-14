@@ -123,7 +123,7 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
       available: true,
       enabled: true
     },
-    // ── 상품 등록 관련 서브태스크 (SNS 오픈=파생모드 제외, 플랫폼별 구분) ──
+    // ── 상품 등록 관련 서브태스크 (플랫폼별 구분) ────────────────────────
     {
       key: "sitelang",
       label: "└ 시트 언어 검수",
