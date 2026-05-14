@@ -6,9 +6,11 @@ import { toApiResponse } from "@/lib/asana/errors";
 
 export const runtime = "nodejs";
 
-function detectSuffix(userName: string): "_CN" | "_NAEU" | "" {
+function detectSuffix(userName: string): "_CN" | "_NAEU" | "_APAC" | "_JP" | "" {
   if (userName.includes("중국사업팀")) return "_CN";
   if (userName.includes("북미유럽사업팀")) return "_NAEU";
+  if (userName.includes("APAC사업팀")) return "_APAC";
+  if (userName.includes("일본사업팀")) return "_JP";
   return "";
 }
 
@@ -16,7 +18,7 @@ function detectSuffix(userName: string): "_CN" | "_NAEU" | "" {
  * GET /api/asana/check-derivative?projectGid=...&productCode=...
  * 파생 모드 여부를 판단:
  *   - 해당 프로젝트에 동일 상품코드 섹션이 존재하고
- *   - 현재 Asana 사용자가 중국사업팀 또는 북미유럽사업팀인 경우 → isDerivative: true
+ *   - 현재 Asana 사용자가 중국/북미유럽/APAC/일본사업팀인 경우 → isDerivative: true
  */
 export async function GET(req: NextRequest) {
   try {
