@@ -151,19 +151,30 @@ export async function createTasksFromPreview(
   // ── 생성 순서: 당첨자 선정 → VMD → MD → 업데이트 → 오픈 ──────────────────
   // 최종 표시 순서(역순): 오픈 (최상단) → 업데이트 → MD → VMD → 당첨자 선정
   // 파생 모드: winner/update 생성 생략
-  if (!isDerivative && isEnabled(rowMap, "winner")) await createWinnerTask(context);
-  if (isEnabled(rowMap, "vmd")) await createVmdTask(context);
-  if (isEnabled(rowMap, "md")) await createMdTasks(context);
-  if (!isDerivative && isEnabled(rowMap, "up")) await createUpdateTasks(context);
-  if (isEnabled(rowMap, "open")) await createOpenTasks(context);
+  // ※ 태스크 생성 도중 오류가 발생해도 addTaskToSection은 반드시 실행해야 하므로
+  //   try/finally로 감쌈. 이미 생성된 태스크는 파생 섹션에 정상 배치됨.
+  let taskCreationError: unknown = null;
+  try {
+    if (!isDerivative && isEnabled(rowMap, "winner")) await createWinnerTask(context);
+    if (isEnabled(rowMap, "vmd")) await createVmdTask(context);
+    if (isEnabled(rowMap, "md")) await createMdTasks(context);
+    if (!isDerivative && isEnabled(rowMap, "up")) await createUpdateTasks(context);
+    if (isEnabled(rowMap, "open")) await createOpenTasks(context);
+  } catch (err) {
+    taskCreationError = err;
+  }
 
   // ── 섹션 최상단에 역순 배치 ───────────────────────────────────────────────
   // 각 태스크를 동일한 anchor(firstExisting) 바로 앞에 순서대로 삽입.
   // 나중에 삽입할수록 anchor 앞을 차지 → 마지막 생성(오픈)이 최상단.
+  // 태스크 생성 오류가 있었더라도 이미 생성된 태스크들은 섹션에 배치.
   const anchor = firstExistingGid ?? undefined;
   for (let i = 0; i < context.topLevelTaskGids.length; i++) {
     await addTaskToSection(context.topLevelTaskGids[i], sectionGid, token, anchor);
   }
+
+  // 태스크 생성 오류가 있었으면 섹션 배치 후 다시 던짐
+  if (taskCreationError) throw taskCreationError;
 
   // 이벤트 구분 필드 설정 실패가 있었으면 에러로 던짐 (태스크는 이미 생성됨)
   if (context.eventFieldErrors.length > 0) {
@@ -367,20 +378,29 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   // 생성자 ≠ 디자이너인 경우 생성자를 협업 참여자에 자동 포함
   // 파생 모드에서는 프리뷰 체크 여부와 무관하게 항상 SNS 오픈 디자인 생성
   if (isDerivative || isEnabled(rowMap, "opendesign")) {
+    const designHtmlNotes = isDerivative
+      ? buildSnsOpenDescription(openContext)
+      : buildOpenDescription(openContext);
     const designPayload: AsanaTaskPayload = {
       name: designName,
       parent: openGid,
       assignee: designerGid || undefined,
-      html_notes: isDerivative
-        ? buildSnsOpenDescription(openContext)
-        : buildOpenDescription(openContext),
+      html_notes: designHtmlNotes,
       custom_fields: await buildTaskTypeOnlyFields(projectGid, TASK_TYPE_NAME_OPEN, token)
     };
     applyDue(designPayload, dueFields);
     applyFollowers(designPayload, buildDesignFollowers(ctx));
-    const designGid = await createTask(designPayload, token);
-    await safeSetEventField(designGid, eventLabels, ctx);
-    record(ctx, "opendesign", designGid, designName);
+    try {
+      const designGid = await createTask(designPayload, token);
+      await safeSetEventField(designGid, eventLabels, ctx);
+      record(ctx, "opendesign", designGid, designName);
+    } catch (err) {
+      // 진단: 오류 발생 시 html_notes를 로그에 기록 후 재던짐
+      console.error("[createOpenTasks] 디자인 서브태스크 생성 실패");
+      console.error("[createOpenTasks] html_notes:", designHtmlNotes);
+      console.error("[createOpenTasks] 오류:", err instanceof Error ? err.message : err);
+      throw err;
+    }
   }
 }
 

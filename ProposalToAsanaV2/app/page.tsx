@@ -63,7 +63,7 @@ type Step = "idle" | "parsing" | "preview" | "creating" | "done";
 type DerivativeInfo = {
   sectionGid: string;
   sectionName: string;
-  suffix: "_CN" | "_NAEU";
+  suffix: "_CN" | "_NAEU" | "_APAC" | "_JP";
 };
 
 /** 이벤트 하나의 편집 가능한 상태 */

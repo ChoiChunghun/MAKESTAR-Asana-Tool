@@ -5,10 +5,10 @@ export type AsanaProject = {
   name: string;
 };
 
-/** 파생 모드: 동일 섹션 재사용 + _CN/_NAEU 접미사 + "파생" 이벤트 구분 고정 */
+/** 파생 모드: 동일 섹션 재사용 + 국가별 접미사 + "파생" 이벤트 구분 고정 */
 export type DerivativeMode = {
   sectionGid: string;
-  suffix: "_CN" | "_NAEU";
+  suffix: "_CN" | "_NAEU" | "_APAC" | "_JP";
 };
 
 export type AsanaCreateTasksRequest = {
