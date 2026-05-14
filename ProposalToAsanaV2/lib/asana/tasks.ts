@@ -23,7 +23,7 @@ import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline
 import { resolveVmdSubName } from "@/lib/parser/parseOpenContext";
 import { isValidGid } from "@/lib/parser/utils";
 import { asanaRequest, getCurrentUserGid, validateToken } from "./client";
-import { addTaskToSection, getFirstTaskInSection, getOrCreateSection } from "./sections";
+import { addTaskToSection, getSectionTasks, getOrCreateSection } from "./sections";
 import {
   buildBaseProgressFields,
   buildTaskTypeOnlyFields,
@@ -43,6 +43,12 @@ type AsanaTaskPayload = {
   custom_fields?: Record<string, string | string[]>;
 };
 
+type TopLevelCreatedTask = {
+  key: TaskKey;
+  gid: string;
+  name: string;
+};
+
 type TaskCreateContext = {
   request: AsanaCreateTasksRequest;
   sectionGid: string;
@@ -52,7 +58,7 @@ type TaskCreateContext = {
   projectGid: string;
   requesterGid: string;   // 토큰 사용자 (부모 태스크 담당자)
   designerGid: string;    // 디자인 서브태스크 담당자
-  topLevelTaskGids: string[];   // 섹션 최상단 정렬용 (생성 순서대로 push)
+  topLevelTasks: TopLevelCreatedTask[]; // 섹션 배치용 상위 태스크 목록
   eventLabels: OpenEventLabel[]; // 이벤트 구분 커스텀 필드에 사용
   followerGids: string[];        // 협업 참여자 — 모든 태스크에 일괄 적용
   productRegFollowerGids: string[]; // 상품 등록 전용 협업 참여자 (시트 언어 검수·어드민 상품 등록)
@@ -121,9 +127,13 @@ export async function createTasksFromPreview(
   }
   const rowMap = new Map(effectiveRows.map((r) => [r.key, r]));
 
-  // 섹션에 현재 첫 번째 태스크 GID를 미리 파악 — 태스크 생성 전에 조회해야 함.
-  // 생성 후에 조회하면 새로 만든 태스크가 섹션에 자동 배치되어 anchor가 오염됨.
-  const firstExistingGid = await getFirstTaskInSection(sectionGid, token);
+  // 섹션의 현재 태스크 목록을 미리 파악 — 생성 후에 조회하면 새 태스크가 섞여 배치 기준이 오염된다.
+  const existingSectionTasks = await getSectionTasks(sectionGid, token);
+  const firstExistingGid = existingSectionTasks[0]?.gid;
+  const derivativePlacementAnchors = new Map<string, string>();
+  for (const task of existingSectionTasks) {
+    derivativePlacementAnchors.set(normalizeTaskPlacementName(task.name), task.gid);
+  }
 
   // ── 파생 모드: 이벤트 구분 "파생" 고정 ──────────────────────────────────
   const eventLabels: OpenEventLabel[] = isDerivative
@@ -139,7 +149,7 @@ export async function createTasksFromPreview(
     projectGid: request.projectGid,
     requesterGid,
     designerGid: resolvedDesignerGid,
-    topLevelTaskGids: [],
+    topLevelTasks: [],
     eventLabels,
     followerGids,
     productRegFollowerGids,
@@ -168,9 +178,22 @@ export async function createTasksFromPreview(
   // 각 태스크를 동일한 anchor(firstExisting) 바로 앞에 순서대로 삽입.
   // 나중에 삽입할수록 anchor 앞을 차지 → 마지막 생성(오픈)이 최상단.
   // 태스크 생성 오류가 있었더라도 이미 생성된 태스크들은 섹션에 배치.
-  const anchor = firstExistingGid ?? undefined;
-  for (let i = 0; i < context.topLevelTaskGids.length; i++) {
-    await addTaskToSection(context.topLevelTaskGids[i], sectionGid, token, anchor);
+  for (const task of context.topLevelTasks) {
+    const normalizedName = normalizeTaskPlacementName(task.name);
+    const matchedExistingGid = isDerivative ? derivativePlacementAnchors.get(normalizedName) : undefined;
+
+    if (matchedExistingGid) {
+      await addTaskToSection(task.gid, sectionGid, token, { insertAfterGid: matchedExistingGid });
+      derivativePlacementAnchors.set(normalizedName, task.gid);
+      continue;
+    }
+
+    await addTaskToSection(
+      task.gid,
+      sectionGid,
+      token,
+      firstExistingGid ? { insertBeforeGid: firstExistingGid } : undefined
+    );
   }
 
   // 태스크 생성 오류가 있었으면 섹션 배치 후 다시 던짐
@@ -194,10 +217,11 @@ export async function createTasksFromPreview(
 async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
   const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary } = request.plan;
+  const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "md");
-  const mdName = title(rowMap, "md", `[${summary.productCode}] MD`);
-  const pcName = title(rowMap, "pc", `[${summary.productCode}] 포토카드 / ${summary.photocards.length}세트 총 ${summary.photocardTotal}종`);
-  const spName = title(rowMap, "sp", `[${summary.productCode}] 특전 / ${summary.benefits.length}종 총 ${summary.benefitTotal}종`);
+  const mdName = title(rowMap, "md", `[${productCode}] MD`);
+  const pcName = title(rowMap, "pc", `[${productCode}] 포토카드 / ${summary.photocards.length}세트 총 ${summary.photocardTotal}종`);
+  const spName = title(rowMap, "sp", `[${productCode}] 특전 / ${summary.benefits.length}종 총 ${summary.benefitTotal}종`);
 
   // ── MD 부모: 상태(진행) + 태스크 구분 ───────────────────────────────────
   const mdPayload: AsanaTaskPayload = {
@@ -210,7 +234,7 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
   applyDue(mdPayload, dueFields);
   applyFollowers(mdPayload, followerGids);
   const mdGid = await createTask(mdPayload, token);
-  ctx.topLevelTaskGids.push(mdGid);
+  recordTopLevel(ctx, "md", mdGid, mdName);
   record(ctx, "md", mdGid, mdName);
 
   // ── 포토카드 서브: 태스크 구분 ──────────────────────────────────────────
@@ -247,9 +271,10 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
 async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
   const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary } = request.plan;
+  const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "update");
-  const upName = title(rowMap, "up", `[${summary.productCode}] 업데이트`);
-  const upSubName = title(rowMap, "upsub", `[${summary.productCode}] 업데이트 / ${summary.photocardTotal}종`);
+  const upName = title(rowMap, "up", `[${productCode}] 업데이트`);
+  const upSubName = title(rowMap, "upsub", `[${productCode}] 업데이트 / ${summary.photocardTotal}종`);
 
   // ── 업데이트 부모: 상태(진행) + 태스크 구분 ─────────────────────────────
   const upPayload: AsanaTaskPayload = {
@@ -262,7 +287,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
   applyDue(upPayload, dueFields);
   applyFollowers(upPayload, followerGids);
   const upGid = await createTask(upPayload, token);
-  ctx.topLevelTaskGids.push(upGid);
+  recordTopLevel(ctx, "up", upGid, upName);
   record(ctx, "up", upGid, upName);
 
   // ── 업데이트 서브: 상태(진행) + 태스크 구분 (부모와 동일 처리) ──────────
@@ -284,14 +309,15 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
 async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   const { request, rowMap, token, projectGid, requesterGid, designerGid, eventLabels, followerGids, productRegFollowerGids, isDerivative } = ctx;
   const { summary, openContext } = request.plan;
+  const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "open");
 
   const openName = title(rowMap, "open", isDerivative
-    ? `[${summary.productCode}] SNS 오픈`
-    : `[${summary.productCode}] 오픈`);
+    ? `[${productCode}] SNS 오픈`
+    : `[${productCode}] 오픈`);
   const designName = title(rowMap, "opendesign", isDerivative
-    ? `[${summary.productCode}] SNS 오픈 디자인`
-    : `[${summary.productCode}] 오픈 디자인`);
+    ? `[${productCode}] SNS 오픈 디자인`
+    : `[${productCode}] 오픈 디자인`);
 
   // ── 오픈 부모: 상태(진행) + 태스크 구분 + 이벤트 구분 ───────────────────
   const openPayload: AsanaTaskPayload = {
@@ -312,7 +338,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   applyFollowers(openPayload, followerGids);
   const openGid = await createTask(openPayload, token);
   await safeSetEventField(openGid, eventLabels, ctx);
-  ctx.topLevelTaskGids.push(openGid);
+  recordTopLevel(ctx, "open", openGid, openName);
   record(ctx, "open", openGid, openName);
 
   // ── 상품 등록 관련 서브태스크 ───────────────────────────────────────────
@@ -324,11 +350,11 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 
   // 어드민 상품 등록 (플랫폼에 따라 내용 분기)
   if (isEnabled(rowMap, "adminreg")) {
-    const adminRegName = title(
-      rowMap, "adminreg",
-      isYdn
-        ? `[${summary.productCode}] 웨이디엔 어드민 상품 등록 및 검수`
-        : `[${summary.productCode}] 어드민 상품 등록`
+      const adminRegName = title(
+        rowMap, "adminreg",
+        isYdn
+        ? `[${productCode}] 웨이디엔 어드민 상품 등록 및 검수`
+        : `[${productCode}] 어드민 상품 등록`
     );
     const adminRegPayload: AsanaTaskPayload = {
       name: adminRegName,
@@ -344,7 +370,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 
   // 시트 언어 검수 (메이크스타 전용, YDN 제외)
   if (!isYdn && isEnabled(rowMap, "sitelang")) {
-    const siteLangName = title(rowMap, "sitelang", `[${summary.productCode}] 시트 언어 검수`);
+    const siteLangName = title(rowMap, "sitelang", `[${productCode}] 시트 언어 검수`);
     const siteLangPayload: AsanaTaskPayload = {
       name: siteLangName,
       parent: openGid,
@@ -358,9 +384,9 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 
     // 언어별 하위 태스크 (자동 생성, 별도 체크박스 없음)
     const langSubTasks = [
-      `[${summary.productCode}] 영어 시트 검수`,
-      `[${summary.productCode}] 중국어(간체) 시트 검수`,
-      `[${summary.productCode}] 일본어 시트 검수`
+      `[${productCode}] 영어 시트 검수`,
+      `[${productCode}] 중국어(간체) 시트 검수`,
+      `[${productCode}] 일본어 시트 검수`
     ];
     for (const langName of langSubTasks) {
       const langPayload: AsanaTaskPayload = {
@@ -405,9 +431,10 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
   const { request, rowMap, token, projectGid, requesterGid, designerGid, followerGids } = ctx;
   const { summary, openContext } = request.plan;
+  const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "vmd");
-  const vmdName = title(rowMap, "vmd", `[${summary.productCode}] VMD`);
-  const subName = title(rowMap, "vmdsub", resolveVmdSubName(summary.productCode, openContext.venue, openContext.vmdItemCount));
+  const vmdName = title(rowMap, "vmd", `[${productCode}] VMD`);
+  const subName = title(rowMap, "vmdsub", resolveVmdSubName(productCode, openContext.venue, openContext.vmdItemCount));
 
   // ── VMD 부모: 상태(진행) + 태스크 구분 ──────────────────────────────────
   const vmdPayload: AsanaTaskPayload = {
@@ -420,7 +447,7 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
   applyDue(vmdPayload, dueFields);
   applyFollowers(vmdPayload, followerGids);
   const vmdGid = await createTask(vmdPayload, token);
-  ctx.topLevelTaskGids.push(vmdGid);
+  recordTopLevel(ctx, "vmd", vmdGid, vmdName);
   record(ctx, "vmd", vmdGid, vmdName);
 
   // ── VMD 서브: 태스크 구분 ────────────────────────────────────────────────
@@ -442,8 +469,9 @@ async function createVmdTask(ctx: TaskCreateContext): Promise<void> {
 async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
   const { request, rowMap, token, projectGid, requesterGid, followerGids } = ctx;
   const { summary } = request.plan;
+  const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getWinnerDueFields(request.plan.normalizedData);
-  const winnerName = title(rowMap, "winner", `[${summary.productCode}] 당첨자 선정`);
+  const winnerName = title(rowMap, "winner", `[${productCode}] 당첨자 선정`);
 
   // ── 당첨자 선정: 상태(진행) + 태스크 구분(기타) ─────────────────────────
   // followerGids 미적용: 스케줄링 목적 태스크이므로 협업 참여자 불필요
@@ -456,7 +484,7 @@ async function createWinnerTask(ctx: TaskCreateContext): Promise<void> {
   };
   applyDue(payload, dueFields);
   const gid = await createTask(payload, token);
-  ctx.topLevelTaskGids.push(gid);
+  recordTopLevel(ctx, "winner", gid, winnerName);
   record(ctx, "winner", gid, winnerName);
 }
 
@@ -509,11 +537,28 @@ function title(rowMap: Map<TaskKey, PreviewTaskRow>, key: TaskKey, fallback: str
   return rowMap.get(key)?.title?.trim() || fallback;
 }
 
+function buildTaskProductCode(productCode: string, suffix?: string): string {
+  return suffix ? `${productCode}${suffix}` : productCode;
+}
+
+function normalizeTaskPlacementName(name: string): string {
+  return name
+    .replace(/^\[([^\]]+?)(?:_(?:CN|NAEU|APAC|JP))?\]/, "[$1]")
+    .replace(/\s+SNS\s+오픈/g, " 오픈")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function isEnabled(rowMap: Map<TaskKey, PreviewTaskRow>, key: TaskKey): boolean {
   const row = rowMap.get(key);
   if (!row || !row.available || !row.enabled) return false;
   if (row.parentKey) return isEnabled(rowMap, row.parentKey);
   return true;
+}
+
+function recordTopLevel(ctx: TaskCreateContext, key: TaskKey, gid: string, name: string): void {
+  ctx.topLevelTasks.push({ key, gid, name });
 }
 
 function record(ctx: TaskCreateContext, key: string, gid: string, name: string): void {

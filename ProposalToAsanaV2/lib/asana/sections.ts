@@ -1,6 +1,7 @@
 import { asanaRequest } from "./client";
 
 type AsanaSection = { gid: string; name: string };
+export type AsanaSectionTask = { gid: string; name: string };
 
 export async function getOrCreateSection(projectGid: string, sectionName: string, token: string): Promise<string> {
   const sections = await asanaRequest<AsanaSection[]>(
@@ -65,17 +66,31 @@ export async function getFirstTaskInSection(sectionGid: string, token: string): 
   }
 }
 
+/** 섹션의 현재 태스크 목록을 반환 (표시 순서 유지) */
+export async function getSectionTasks(sectionGid: string, token: string): Promise<AsanaSectionTask[]> {
+  try {
+    return await asanaRequest<AsanaSectionTask[]>(
+      "get",
+      `/sections/${sectionGid}/tasks?opt_fields=gid,name&limit=100`,
+      token
+    );
+  } catch {
+    return [];
+  }
+}
+
 /**
  * 태스크를 섹션에 추가.
- * insertBeforeGid 지정 시 해당 태스크 앞에 삽입 (최상단 배치에 사용).
+ * insertBeforeGid / insertAfterGid 지정 시 해당 태스크 기준으로 삽입.
  */
 export async function addTaskToSection(
   taskGid: string,
   sectionGid: string,
   token: string,
-  insertBeforeGid?: string
+  position?: { insertBeforeGid?: string; insertAfterGid?: string }
 ): Promise<void> {
   const body: Record<string, string> = { task: taskGid };
-  if (insertBeforeGid) body.insert_before = insertBeforeGid;
+  if (position?.insertBeforeGid) body.insert_before = position.insertBeforeGid;
+  if (position?.insertAfterGid) body.insert_after = position.insertAfterGid;
   await asanaRequest("post", `/sections/${sectionGid}/addTask`, token, body);
 }
