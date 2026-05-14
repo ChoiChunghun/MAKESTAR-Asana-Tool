@@ -765,33 +765,6 @@ export default function HomePage() {
 
                 <ParseSummary summary={activePlan.summary} />
 
-                <TaskPreviewTable
-                  rows={activeRows}
-                  sectionName={activeSectionName}
-                  onRowsChange={setActiveRows}
-                  onSectionNameChange={setActiveSectionName}
-                />
-
-                {/* 파생 모드 배너 */}
-                {derivativeChecking && (
-                  <div className="bg-ms-panel border border-ms-border rounded-xl px-4 py-2 text-ms-muted text-sm">
-                    파생 모드 확인 중...
-                  </div>
-                )}
-                {!derivativeChecking && derivativeInfo && (
-                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 text-orange-300 text-sm space-y-1">
-                    <p className="font-semibold">⚠ 파생 모드 감지됨</p>
-                    <p>
-                      기존 섹션 <strong className="text-orange-200">&quot;{derivativeInfo.sectionName}&quot;</strong>에 태스크가 추가됩니다.
-                    </p>
-                    <p>
-                      상품코드에 <strong className="text-orange-200">{derivativeInfo.suffix}</strong> 접미사가 자동 적용되고,
-                      태스크 유형이 <strong className="text-orange-200">SNS 오픈</strong>으로,
-                      이벤트 구분이 <strong className="text-orange-200">파생</strong>으로 고정됩니다.
-                    </p>
-                  </div>
-                )}
-
                 {/* 프로젝트 선택 + 생성 */}
                 <div className="card">
                   <div className="ms-label mb-3">
@@ -894,6 +867,33 @@ export default function HomePage() {
                     )}
                   </div>
                 </div>
+
+                {/* 파생 모드 배너 */}
+                {derivativeChecking && (
+                  <div className="bg-ms-panel border border-ms-border rounded-xl px-4 py-2 text-ms-muted text-sm">
+                    파생 모드 확인 중...
+                  </div>
+                )}
+                {!derivativeChecking && derivativeInfo && (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 text-orange-300 text-sm space-y-1">
+                    <p className="font-semibold">⚠ 파생 모드 감지됨</p>
+                    <p>
+                      기존 섹션 <strong className="text-orange-200">&quot;{derivativeInfo.sectionName}&quot;</strong>에 태스크가 추가됩니다.
+                    </p>
+                    <p>
+                      상품코드에 <strong className="text-orange-200">{derivativeInfo.suffix}</strong> 접미사가 자동 적용되고,
+                      태스크 유형이 <strong className="text-orange-200">SNS 오픈</strong>으로,
+                      이벤트 구분이 <strong className="text-orange-200">파생</strong>으로 고정됩니다.
+                    </p>
+                  </div>
+                )}
+
+                <TaskPreviewTable
+                  rows={activeRows}
+                  sectionName={activeSectionName}
+                  onRowsChange={setActiveRows}
+                  onSectionNameChange={setActiveSectionName}
+                />
               </>
             )}
 
