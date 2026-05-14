@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 function detectSuffix(userName: string): "_CN" | "_NAEU" | "_APAC" | "_JP" | "" {
   if (userName.includes("중국사업팀")) return "_CN";
-  if (userName.includes("북미유럽사업팀")) return "_NAEU";
+  if (userName.includes("미주유럽사업팀")) return "_NAEU";
   if (userName.includes("APAC사업팀")) return "_APAC";
   if (userName.includes("일본사업팀")) return "_JP";
   return "";
