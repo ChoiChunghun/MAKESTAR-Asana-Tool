@@ -1,5 +1,6 @@
 import type { NormalizedPlanData, ParseConfig, ParsedItem } from "@/types/parser";
 import { EXCLUDE_KEYWORDS_PC, EXCLUDE_PATTERNS_PC, PC_NAME_PREFIX_STRIP } from "./constants";
+import { mergeParsedItemCount } from "./itemCounts";
 import { inferMemberCountFromContext, stopAtNotice } from "./utils";
 
 export function parsePhotocards(data: NormalizedPlanData, config?: ParseConfig): ParsedItem[] {
@@ -62,17 +63,42 @@ export function parsePhotocards(data: NormalizedPlanData, config?: ParseConfig):
     if (!name || name.length < 2) name = "포토카드";
     if (name === "사인") continue;
 
+    const item = buildPhotocardItem(name, count, cell, lines, i);
+
     const existing = seen.get(name);
     if (existing !== undefined) {
       // 같은 버전이 여러 For. 구간에 중복 등장할 경우 합산하지 않고 MAX를 유지
-      results[existing].count = Math.max(results[existing].count, count);
+      Object.assign(results[existing], mergeParsedItemCount(results[existing], item));
     } else {
       seen.set(name, results.length);
-      results.push({ name, count });
+      results.push(item);
     }
   }
 
   return results;
+}
+
+function buildPhotocardItem(
+  name: string,
+  count: number,
+  cell: string,
+  lines: string[],
+  lineIdx: number
+): ParsedItem {
+  if (!isMemberRandomPhotocard(cell)) {
+    return { name, count };
+  }
+
+  const inferredCount = inferMemberCountFromContext(lines, lineIdx);
+  if (inferredCount > 0) {
+    return { name, count: inferredCount };
+  }
+
+  return { name, count: 0, countLabel: "수량 확인 필요" };
+}
+
+function isMemberRandomPhotocard(text: string): boolean {
+  return /멤버\s*랜덤|멤버랜덤|응모한\s*멤버의|응모\s*멤버의|희망\s*멤버의|원하는\s*멤버의/i.test(text);
 }
 
 /**
