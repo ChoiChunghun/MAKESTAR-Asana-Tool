@@ -102,10 +102,16 @@ function extractOverviewTable(lines: string[]): OverviewFields {
     if (!found.has("albumName")) {
       if (norm === "앨범") {
         const v = findNextNonEmptyValue(scanLines, i + 1, LABEL_KEYS);
-        if (v) { result.albumName = v; found.add("albumName"); }
+        if (v && !looksLikeEventTitleValue(v, scanLines, i + 1, LABEL_KEYS)) {
+          result.albumName = v;
+          found.add("albumName");
+        }
       } else if (norm.startsWith("앨범") && norm.length > 2) {
         const v = extractValueAfterLabel(line, "앨범");
-        if (v) { result.albumName = v; found.add("albumName"); }
+        if (v && !looksLikeEventTitleValue(v, scanLines, i, LABEL_KEYS)) {
+          result.albumName = v;
+          found.add("albumName");
+        }
       }
     }
 
@@ -135,13 +141,13 @@ function extractOverviewTable(lines: string[]): OverviewFields {
     if (!found.has("eventTitle")) {
       if (norm === "이벤트명") {
         // 여러 부(部)가 있을 수 있으므로 다음 줄들을 수집해 합침
-        const raw = collectEventTitleLines(scanLines, i + 1, LABEL_KEYS);
+        const raw = collectEventTitleCluster(scanLines, i, LABEL_KEYS);
         if (raw && !raw.startsWith("{")) {
           result.eventTitle = raw.replace(/^\d+\s*부\s*[:：]?\s*/i, "").trim();
           found.add("eventTitle");
         }
       } else if (/이벤트명/.test(norm)) {
-        const raw = extractValueAfterLabel(line, "이벤트명");
+        const raw = collectEventTitleCluster(scanLines, i, LABEL_KEYS);
         if (raw && !raw.startsWith("{")) {
           result.eventTitle = raw.replace(/^N\s*부\s*[:：]?\s*/i, "").trim();
           found.add("eventTitle");
@@ -237,6 +243,43 @@ function collectEventTitleLines(lines: string[], startIdx: number, labelKeys: st
   return parts.join(" / ");
 }
 
+function collectEventTitleCluster(lines: string[], labelIdx: number, labelKeys: string[]): string {
+  const parts: string[] = [];
+
+  for (let j = Math.max(0, labelIdx - 2); j < labelIdx; j++) {
+    const v = lines[j]?.trim();
+    if (!v || !looksLikePartLine(v)) continue;
+    parts.push(stripPartPrefix(v));
+  }
+
+  const inline = extractValueAfterLabel(lines[labelIdx] || "", "이벤트명");
+  if (inline) {
+    parts.push(stripPartPrefix(inline));
+  } else {
+    const nextLines = collectEventTitleLines(lines, labelIdx + 1, labelKeys);
+    if (nextLines) parts.push(nextLines);
+  }
+
+  for (let j = labelIdx + 1; j < Math.min(labelIdx + 6, lines.length); j++) {
+    const v = lines[j]?.trim();
+    if (!v) continue;
+    const normed = v.replace(/\s+/g, "");
+    if (labelKeys.some((k) => normed === k || normed.startsWith(k))) break;
+    if (!looksLikePartLine(v)) continue;
+    parts.push(stripPartPrefix(v));
+  }
+
+  return Array.from(new Set(parts.filter(Boolean))).join(" / ");
+}
+
+function stripPartPrefix(value: string): string {
+  return value.replace(/^\d+\s*부\s*[:：]?\s*/i, "").trim();
+}
+
+function looksLikePartLine(value: string): boolean {
+  return /^\d+\s*부(?:\s*[:：]?\s*.*)?$/i.test(value.trim());
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // 헬퍼: 응모기간 여러 줄 수집 (start ~ end가 줄 걸쳐 있을 수 있음)
 // ──────────────────────────────────────────────────────────────────────────
@@ -313,6 +356,19 @@ function extractValueAfterLabel(line: string, label: string): string {
   const idx = line.indexOf(label);
   if (idx < 0) return "";
   return line.slice(idx + label.length).replace(/^[\s:：]+/, "").trim();
+}
+
+function looksLikeEventTitleValue(value: string, lines: string[], valueIdx: number, labelKeys: string[]): boolean {
+  if (!looksLikePartLine(value)) return false;
+  for (let j = valueIdx; j < Math.min(valueIdx + 3, lines.length); j++) {
+    const v = lines[j]?.trim();
+    if (!v) continue;
+    const normed = v.replace(/\s+/g, "");
+    if (labelKeys.some((k) => normed === k || normed.startsWith("이벤트명"))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** 진행장소처럼 여러 줄에 걸쳐 있는 값을 " / " 로 이어 수집 */

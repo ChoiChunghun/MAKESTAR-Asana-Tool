@@ -71,15 +71,56 @@ async function extractPdfTextInBrowser(file: File): Promise<string> {
     useWorkerFetch: false
   }).promise;
 
+  type PositionedText = {
+    str: string;
+    x: number;
+    y: number;
+  };
+
+  const lineTolerance = 3;
+
   const pages: string[] = [];
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const items: PositionedText[] = textContent.items
+      .map((item) => {
+        if (!("str" in item) || !item.str.trim()) return null;
+        return {
+          str: item.str,
+          x: item.transform[4],
+          y: item.transform[5]
+        };
+      })
+      .filter((item): item is PositionedText => item !== null);
+
+    const lines: { y: number; items: PositionedText[] }[] = [];
+    for (const item of items) {
+      const matchedLine = lines.find((line) => Math.abs(line.y - item.y) <= lineTolerance);
+      if (matchedLine) {
+        matchedLine.items.push(item);
+        matchedLine.y = (matchedLine.y + item.y) / 2;
+      } else {
+        lines.push({ y: item.y, items: [item] });
+      }
+    }
+
+    const pageText = lines
+      .sort((a, b) => b.y - a.y)
+      .map((line) =>
+        line.items
+          .sort((a, b) => a.x - b.x)
+          .map((item) => item.str)
+          .join(" ")
+          .replace(/\s+([,.;:!?])/g, "$1")
+          .replace(/([([])\s+/g, "$1")
+          .replace(/\s+([)\]])/g, "$1")
+          .replace(/\s+/g, " ")
+          .trim()
+      )
+      .filter(Boolean)
+      .join("\n");
+
     if (pageText) pages.push(pageText);
   }
 
