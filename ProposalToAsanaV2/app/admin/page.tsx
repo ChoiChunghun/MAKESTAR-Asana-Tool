@@ -361,6 +361,15 @@ export default function AdminPage() {
 
         {activeTab === "parsing" && (
           <div className="space-y-6">
+            <div className="card">
+              <h3 className="text-base font-semibold text-ms-text mb-1">현재 파싱 메모</h3>
+              <div className="ms-hint space-y-1">
+                <p>특전명이 같으면 하나의 특전으로 병합합니다. 예: <em>응모한 멤버의 메시지 카드</em>와 <em>메시지 카드</em>.</p>
+                <p><em>멤버 랜덤</em>, <em>응모한 멤버의</em>, <em>희망 멤버의</em> 같은 문구는 주변 포카/특전 문맥에서 멤버 수를 추정합니다.</p>
+                <p>주변 문맥으로도 수량을 확정할 수 없으면 미리보기와 태스크 설명에 <em>수량 확인 필요</em>로 표시합니다.</p>
+                <p>업데이트 서브태스크의 <em>N종</em> 표기는 포토카드 총 수량이 아니라 포토카드 버전 수 기준입니다.</p>
+              </div>
+            </div>
             <KeywordEditor
               label="특전 인식 키워드"
               description="이 키워드가 포함된 줄에서 특전 항목을 추출합니다. 포토카드는 제외됩니다."
