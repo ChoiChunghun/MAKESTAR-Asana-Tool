@@ -209,6 +209,13 @@ export default function HomePage() {
       const data = await res.json();
       if (data.isDerivative) {
         setDerivativeInfo({ sectionGid: data.sectionGid, sectionName: data.sectionName, suffix: data.suffix });
+        // 파생 모드: 생성하지 않는 태스크(당첨자 선정·업데이트) 자동 체크 해제
+        const DERIVATIVE_SKIP = ["winner", "up", "upsub"];
+        setActiveRows(
+          (isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? []) : rows).map((r) =>
+            DERIVATIVE_SKIP.includes(r.key) ? { ...r, enabled: false } : r
+          )
+        );
       } else {
         setDerivativeInfo(null);
       }

@@ -290,7 +290,7 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
     ...(isDerivative
       ? {
           html_notes:
-            "<body>메이크스타에서 오픈한 이벤트를 특정 국가를 타겟으로 추가 작업할 때 사용하는 태스크 입니다!" +
+            `<body><em>메이크스타에서 오픈한 이벤트를 특정 국가를 타겟으로 추가 작업할 때 사용하는 태스크 입니다!</em>` +
             `<ul><li>SNS 발행 후 "완료" 처리 부탁드립니다!</li>` +
             `<li>"이벤트 구분" 필드 값을 입력해 주세요! <em>(중복 선택 가능)</em></li></ul></body>`
         }
