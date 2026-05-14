@@ -81,12 +81,12 @@ export async function POST(request: Request) {
         fileName?: string;
       };
 
-      // 브라우저에서 추출한 텍스트 직접 수신 (대용량 docx 우회)
+      // 브라우저에서 추출한 텍스트 직접 수신 (대용량 docx/pdf 우회)
       if (body.rawText) {
-        // rawText 크기 제한: 1MB (DoS 방지)
-        if (body.rawText.length > 1_048_576) {
+        // rawText 크기 제한: 약 3MB UTF-8 (Vercel 요청 본문 4.5MB 여유 확보)
+        if (Buffer.byteLength(body.rawText, "utf8") > 3 * 1024 * 1024) {
           return NextResponse.json(
-            { message: "문서 텍스트가 너무 큽니다. 1MB 이하 문서만 처리할 수 있습니다." },
+            { message: "문서에서 추출된 텍스트가 너무 큽니다. PDF는 텍스트가 많은 경우 처리되지 않을 수 있습니다." },
             { status: 413 }
           );
         }
@@ -134,10 +134,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "파일을 업로드해주세요." }, { status: 400 });
     }
 
-    // 파일 크기 제한: 30MB
-    if (file.size > 30 * 1024 * 1024) {
+    // 서버 바이너리 업로드 제한: Vercel Functions 실제 한도(4.5MB)와 맞춤
+    if (file.size > 4.5 * 1024 * 1024) {
       return NextResponse.json(
-        { message: "파일 크기가 너무 큽니다. 30MB 이하 파일만 처리할 수 있습니다." },
+        { message: "직접 업로드 가능한 파일 크기를 초과했습니다. 큰 PDF는 브라우저 텍스트 추출 방식으로 처리해주세요." },
         { status: 413 }
       );
     }

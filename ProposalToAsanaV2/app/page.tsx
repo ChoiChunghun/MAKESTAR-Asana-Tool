@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AsanaProject } from "@/types/asana";
-import type { ParsedPlanResult, PreviewTaskRow } from "@/types/parser";
+import type { ParsedItem, ParsedPlanResult, PreviewTaskRow } from "@/types/parser";
 import { DocumentUpload } from "@/components/upload/DocumentUpload";
 import { TokenInput } from "@/components/layout/TokenInput";
 import { ParseSummary } from "@/components/preview/ParseSummary";
 import { TaskPreviewTable } from "@/components/preview/TaskPreviewTable";
 import { EventHistory, type HistoryEntry } from "@/components/layout/EventHistory";
+
+const VERCEL_FUNCTION_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024;
+const PDF_BROWSER_PARSE_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
 /** JSON 파싱 실패 시 (413 등 비JSON 응답) 안전하게 에러를 던짐 */
 async function safeJson(res: Response, fallback: string): Promise<unknown> {
@@ -15,7 +18,9 @@ async function safeJson(res: Response, fallback: string): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
-    if (res.status === 413) throw new Error("파일 크기가 너무 큽니다. 20MB 이하의 파일을 업로드해주세요.");
+    if (res.status === 413) {
+      throw new Error("업로드 데이터가 배포 환경 한도를 초과했습니다. 현재 Vercel 함수 요청 본문은 약 4.5MB까지 처리할 수 있습니다.");
+    }
     throw new Error(text.slice(0, 200) || fallback);
   }
 }
@@ -53,6 +58,34 @@ async function extractDocxTextInBrowser(file: File): Promise<string> {
   return result.value;
 }
 
+/** 큰 PDF는 브라우저에서 텍스트만 추출해 서버 업로드 제한(4.5MB)을 우회 */
+async function extractPdfTextInBrowser(file: File): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({
+    data: new Uint8Array(arrayBuffer),
+    useWorkerFetch: false
+  }).promise;
+
+  const pages: string[] = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (pageText) pages.push(pageText);
+  }
+
+  return pages.join("\n\n");
+}
+
 const HISTORY_KEY = "proposal2asana_history";
 const TOKEN_KEY = "proposal2asana_token";
 const ADMIN_CONFIG_KEY = "proposal2asana_admin_config";
@@ -72,7 +105,28 @@ type EventState = {
   rows: PreviewTaskRow[];
   sectionName: string;
   productCodeOverride: string;
+  photocardNamesDraft: string;
 };
+
+function buildPhotocardDraft(photocards: ParsedItem[]): string {
+  return (photocards ?? []).map((pc) => pc.name).join("\n");
+}
+
+function applyPhotocardDraft(photocards: ParsedItem[], draft: string): ParsedItem[] {
+  const nextNames = draft
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (nextNames.length !== photocards.length) {
+    throw new Error(`포카 항목은 총 ${photocards.length}개입니다. 한 줄에 하나씩 맞춰 입력해주세요.`);
+  }
+
+  return photocards.map((pc, idx) => ({
+    ...pc,
+    name: nextNames[idx]
+  }));
+}
 
 function normalizeDerivativePreviewTitle(title: string): string {
   return title
@@ -104,6 +158,7 @@ export default function HomePage() {
   const [rows, setRows] = useState<PreviewTaskRow[]>([]);
   const [sectionName, setSectionName] = useState("");
   const [productCodeOverride, setProductCodeOverride] = useState("");
+  const [photocardNamesDraft, setPhotocardNamesDraft] = useState("");
 
   // ── 다중 이벤트 상태 (isMultiEvent = true 일 때만 사용) ────────────────────
   const [isMultiEvent, setIsMultiEvent] = useState(false);
@@ -131,6 +186,7 @@ export default function HomePage() {
   const activeRows        = isMultiEvent ? (eventStates[activeEventIdx]?.rows ?? [])                      : rows;
   const activeSectionName = isMultiEvent ? (eventStates[activeEventIdx]?.sectionName ?? "")               : sectionName;
   const activeProductCode = isMultiEvent ? (eventStates[activeEventIdx]?.productCodeOverride ?? "")       : productCodeOverride;
+  const activePhotocardDraft = isMultiEvent ? (eventStates[activeEventIdx]?.photocardNamesDraft ?? "")    : photocardNamesDraft;
 
   /** 현재 활성 이벤트의 rows 를 업데이트 */
   function setActiveRows(newRows: PreviewTaskRow[]) {
@@ -162,6 +218,17 @@ export default function HomePage() {
       );
     } else {
       setProductCodeOverride(code);
+    }
+  }
+
+  /** 현재 활성 이벤트의 포카 이름 드래프트를 업데이트 */
+  function setActivePhotocardDraft(draft: string) {
+    if (isMultiEvent) {
+      setEventStates((prev) =>
+        prev.map((e, i) => (i === activeEventIdx ? { ...e, photocardNamesDraft: draft } : e))
+      );
+    } else {
+      setPhotocardNamesDraft(draft);
     }
   }
 
@@ -273,6 +340,7 @@ export default function HomePage() {
       const lowerName = file.name.toLowerCase();
       const isDocx = lowerName.endsWith(".docx");
       const isTxt  = lowerName.endsWith(".txt");
+      const isPdf  = lowerName.endsWith(".pdf");
       let res: Response;
 
       if (isDocx) {
@@ -286,6 +354,14 @@ export default function HomePage() {
       } else if (isTxt) {
         // .txt: 브라우저에서 직접 읽어 rawText로 전송
         const rawText = await file.text();
+        res = await fetch("/api/parse-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawText, fileName: file.name })
+        });
+      } else if (isPdf && file.size > PDF_BROWSER_PARSE_THRESHOLD_BYTES) {
+        // 배포 환경(Vercel Functions)은 요청 본문 4.5MB 제한이 있어 큰 PDF는 브라우저 추출로 우회
+        const rawText = await extractPdfTextInBrowser(file);
         res = await fetch("/api/parse-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -373,6 +449,7 @@ export default function HomePage() {
     setRows(data.previewRows);
     setSectionName(data.summary.sectionName ?? "");
     setProductCodeOverride(data.summary.productCode ?? "");
+    setPhotocardNamesDraft(buildPhotocardDraft(data.summary.photocards ?? []));
     setStep("preview");
     if (token && projects.length === 0) loadProjects(token);
     // 프로젝트가 이미 선택된 경우 파생 모드 자동 확인
@@ -386,7 +463,8 @@ export default function HomePage() {
       plan: e,
       rows: [...e.previewRows],
       sectionName: e.summary.sectionName ?? "",
-      productCodeOverride: e.summary.productCode ?? ""
+      productCodeOverride: e.summary.productCode ?? "",
+      photocardNamesDraft: buildPhotocardDraft(e.summary.photocards ?? [])
     }));
     setIsMultiEvent(true);
     setActiveEventIdx(0);
@@ -417,6 +495,54 @@ export default function HomePage() {
     setActiveSectionName(newSectionName);
     // 상품코드 변경 → 파생 모드 재확인
     if (token && projectGid) checkDerivativeMode(projectGid, code, token);
+  }
+
+  function applyPhotocardOverride() {
+    if (!activePlan) return;
+    const currentPhotocards = activePlan.summary.photocards ?? [];
+    if (currentPhotocards.length === 0) return;
+
+    try {
+      const updatedPhotocards = applyPhotocardDraft(currentPhotocards, activePhotocardDraft);
+      const normalizedDraft = buildPhotocardDraft(updatedPhotocards);
+
+      if (isMultiEvent) {
+        setEventStates((prev) =>
+          prev.map((e, i) =>
+            i === activeEventIdx
+              ? {
+                  ...e,
+                  photocardNamesDraft: normalizedDraft,
+                  plan: {
+                    ...e.plan,
+                    summary: {
+                      ...e.plan.summary,
+                      photocards: updatedPhotocards
+                    }
+                  }
+                }
+              : e
+          )
+        );
+      } else {
+        setPhotocardNamesDraft(normalizedDraft);
+        setPlan((prev) =>
+          prev
+            ? {
+                ...prev,
+                summary: {
+                  ...prev.summary,
+                  photocards: updatedPhotocards
+                }
+              }
+            : prev
+        );
+      }
+
+      setErrorMsg("");
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "포카 버전 적용 중 오류가 발생했습니다.");
+    }
   }
 
   /** 단일 이벤트 태스크 생성 (공통 로직) */
@@ -487,7 +613,8 @@ export default function HomePage() {
       plan: activePlan,
       rows: activeRows,
       sectionName: activeSectionName,
-      productCodeOverride: activeProductCode
+      productCodeOverride: activeProductCode,
+      photocardNamesDraft: activePhotocardDraft
     };
     setStep("creating");
     setErrorMsg("");
@@ -605,6 +732,7 @@ export default function HomePage() {
     setPlan(null);
     setRows([]);
     setSectionName("");
+    setPhotocardNamesDraft("");
     setErrorMsg("");
     setSelectedFile("");
     setDoneUrl("");
@@ -704,6 +832,10 @@ export default function HomePage() {
                     을 업로드하면 해당 이벤트의 모든 태스크를 일괄 생성합니다.
                     <br />
                     <span className="text-ms-accent text-xs">* Asana 토큰 입력 후 사용 가능</span>
+                    <br />
+                    <span className="text-ms-faint text-xs">
+                      * 큰 PDF는 브라우저에서 텍스트 추출 후 전송됩니다. 직접 업로드 한도는 약 {(VERCEL_FUNCTION_BODY_LIMIT_BYTES / (1024 * 1024)).toFixed(1)}MB 입니다.
+                    </span>
                   </p>
                 </div>
                 <DocumentUpload
@@ -798,6 +930,35 @@ export default function HomePage() {
                     상품코드 입력 후 &quot;일괄 적용&quot;을 누르면 해당 이벤트의 모든 태스크명과 섹션명에 반영됩니다.
                   </p>
                 </div>
+
+                {activePlan.summary.photocards.length > 0 && (
+                  <div className="card">
+                    <div className="ms-label">
+                      <h2 className="text-sm font-semibold text-ms-text">포카 버전 일괄 수정</h2>
+                    </div>
+                    <div className="space-y-2">
+                      <textarea
+                        value={activePhotocardDraft}
+                        onChange={(e) => setActivePhotocardDraft(e.target.value)}
+                        placeholder={"한 줄에 포카 1개씩 입력\n예: 셀카 (DAY ver.)"}
+                        rows={Math.max(3, activePlan.summary.photocards.length)}
+                        className="ms-input min-h-[120px] resize-y leading-6"
+                      />
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="ms-hint">
+                          한 줄에 포카 1개씩, 현재 순서를 유지한 채 이름과 버전만 일괄 수정합니다. 적용 시 MD/업데이트 설명과 최근 생성 이력에도 반영됩니다.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={applyPhotocardOverride}
+                          className="btn shrink-0"
+                        >
+                          일괄 적용
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <ParseSummary summary={activePlan.summary} />
 

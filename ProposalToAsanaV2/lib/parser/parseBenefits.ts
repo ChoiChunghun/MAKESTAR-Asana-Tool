@@ -1,6 +1,7 @@
 import type { NormalizedPlanData, ParseConfig, ParsedItem } from "@/types/parser";
 import { BENEFIT_KEYWORDS, EXCLUDE_KEYWORDS_BENEFIT, EXCLUDE_PATTERNS_BENEFIT, HANDWRITING_KEYWORDS } from "./constants";
-import { escapeRegExp, hasKeyword, stopAtNotice } from "./utils";
+import { mergeParsedItemCount } from "./itemCounts";
+import { escapeRegExp, hasKeyword, inferMemberCountFromContext, stopAtNotice } from "./utils";
 
 export function parseBenefits(data: NormalizedPlanData, config?: ParseConfig): ParsedItem[] {
   const keywords = config?.benefitKeywords ?? BENEFIT_KEYWORDS;
@@ -11,7 +12,8 @@ export function parseBenefits(data: NormalizedPlanData, config?: ParseConfig): P
   const seen = new Map<string, number>();
   const lines = stopAtNotice(data.benefitLines);
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const cell = String(line || "").trim();
     if (!cell) continue;
 
@@ -20,7 +22,7 @@ export function parseBenefits(data: NormalizedPlanData, config?: ParseConfig): P
     if (cell.includes("포토카드")) continue;
     if (excludeKeywords.some((kw) => cell.includes(kw))) continue;
 
-    const item = extractBenefitItem(cell, keyword);
+    const item = extractBenefitItem(cell, keyword, lines, i);
     if (!item) continue;
     if (shouldExclude(cell, item.name, item.count)) continue;
 
@@ -28,12 +30,13 @@ export function parseBenefits(data: NormalizedPlanData, config?: ParseConfig): P
     const hasHandwriting = hasKeyword(cell, hwKeywords);
     if (hasHandwriting) item.hasHandwriting = true;
 
-    const idx = seen.get(item.name);
+    const dedupeKey = item.name.replace(/\s+/g, " ").trim().toLowerCase();
+    const idx = seen.get(dedupeKey);
     if (idx !== undefined) {
-      results[idx].count += item.count;
+      Object.assign(results[idx], mergeParsedItemCount(results[idx], item));
       if (hasHandwriting) results[idx].hasHandwriting = true;
     } else {
-      seen.set(item.name, results.length);
+      seen.set(dedupeKey, results.length);
       results.push(item);
     }
   }
@@ -58,7 +61,7 @@ function shouldExclude(cell: string, name: string, count: number): boolean {
 // 한국어 문장 연결어 기준으로 분리해 keyword+count가 있는 마지막 세그먼트만 사용
 const SENTENCE_SPLITTER = /(?:와\s|과\s|이고\s|이며\s|담긴\s|들어간\s|포함된\s|으로\s(?=\S)|로\s(?=\S)|를\s포함|을\s포함|에게\s)/;
 
-function extractBenefitItem(cell: string, keyword: string): ParsedItem | null {
+function extractBenefitItem(cell: string, keyword: string, lines: string[], lineIdx: number): ParsedItem | null {
   const normalized = cell.replace(/\s+/g, " ").trim();
   const ek = escapeRegExp(keyword);
   // 단위: 매/종/개/통(편지지)/세트(일회용 밴드 등) 포함
@@ -74,7 +77,7 @@ function extractBenefitItem(cell: string, keyword: string): ParsedItem | null {
 
     const name = cleanName(match[1]);
     if (!name || name.length < 2) continue;
-    return { name, count: parseInt(match[2], 10) };
+    return buildBenefitItem(name, parseInt(match[2], 10), normalized, lines, lineIdx);
   }
 
   // fallback: 전체 문자열에서 시도 (세그먼트 분리 실패 시)
@@ -83,7 +86,24 @@ function extractBenefitItem(cell: string, keyword: string): ParsedItem | null {
 
   const name = cleanName(fallback[1]);
   if (!name || name.length < 2) return null;
-  return { name, count: parseInt(fallback[2], 10) };
+  return buildBenefitItem(name, parseInt(fallback[2], 10), normalized, lines, lineIdx);
+}
+
+function buildBenefitItem(name: string, count: number, cell: string, lines: string[], lineIdx: number): ParsedItem {
+  if (!isMemberRandomBenefit(cell)) {
+    return { name, count };
+  }
+
+  const inferredCount = inferMemberCountFromContext(lines, lineIdx);
+  if (inferredCount > 0) {
+    return { name, count: inferredCount };
+  }
+
+  return { name, count: 0, countLabel: "수량 확인 필요" };
+}
+
+function isMemberRandomBenefit(text: string): boolean {
+  return /멤버\s*랜덤|응모한\s*멤버의|응모\s*멤버의|희망\s*멤버의|원하는\s*멤버의/i.test(text);
 }
 
 function cleanName(raw: string): string {
@@ -91,6 +111,7 @@ function cleanName(raw: string): string {
     .replace(/^\d+\.\s*/, "")
     .replace(/^[-•★]\s*/, "")
     .replace(/.*(?:구매\s*시|특전\s*[:：]|증정품\s*[:：]|구성\s*[:：]|\/|,|·)\s*/, "")
+    .replace(/^(?:응모한|응모|희망|원하는)\s*멤버의?\s*/i, "")
     // "제작된 스티커", "만들어진 파우치" 등 한국어 분사형(-된/-진) 수식어 제거
     .replace(/^\S+(?:된|진)\s+/, "")
     .replace(/\s*\(.*?\)\s*$/g, "")

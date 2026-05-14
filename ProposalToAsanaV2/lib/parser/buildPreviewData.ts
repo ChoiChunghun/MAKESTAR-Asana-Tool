@@ -1,4 +1,5 @@
 import type { NormalizedPlanData, ParseConfig, ParsedPlanResult, PreviewTaskRow } from "@/types/parser";
+import { formatTotalCount } from "./itemCounts";
 import { buildSectionName, buildDueSummary } from "./parseDeadline";
 import { parseBenefits } from "./parseBenefits";
 import { parsePhotocards } from "./parsePhotocards";
@@ -17,8 +18,11 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
   const openContext = buildOpenContext(data, productCode, config);
   const dueSummary = buildDueSummary(data, now);
   const sectionName = buildSectionName(data, productCode, now);
+  const photocardVersionTotal = photocards.length;
   const photocardTotal = photocards.reduce((s, i) => s + i.count, 0);
   const benefitTotal = benefits.reduce((s, i) => s + i.count, 0);
+  const photocardTotalNeedsReview = photocards.some((item) => !!item.countLabel);
+  const benefitTotalNeedsReview = benefits.some((item) => !!item.countLabel);
   const hasMd = photocards.length > 0 || benefits.length > 0;
   const createVmdTask = shouldCreateVmdTask(openContext.eventLabels, config?.vmdConditionLabels);
   const createWinnerAnnouncementTask = shouldCreateWinnerTask(openContext.eventLabels);
@@ -47,7 +51,7 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
     {
       key: "pc",
       label: "└ 포토카드",
-      title: `[${productCode}] 포토카드 / ${photocards.length}세트 총 ${photocardTotal}종`,
+      title: `[${productCode}] 포토카드 / ${photocards.length}세트 총 ${formatTotalCount(photocardTotal, photocardTotalNeedsReview)}`,
       indent: 1,
       isParent: false,
       parentKey: "md",
@@ -58,7 +62,7 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
       key: "sp",
       label: "└ 특전",
       title: benefits.length > 0
-        ? `[${productCode}] 특전 / ${benefits.length}종 총 ${benefitTotal}종`
+        ? `[${productCode}] 특전 / ${benefits.length}종 총 ${formatTotalCount(benefitTotal, benefitTotalNeedsReview)}`
         : `[${productCode}] 특전`,
       indent: 1,
       isParent: false,
@@ -97,7 +101,7 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
     {
       key: "upsub",
       label: "└ 업데이트 상세",
-      title: `[${productCode}] 업데이트 / ${photocardTotal}종`,  // 포카 총 종수만 표시
+      title: `[${productCode}] 업데이트 / ${photocardVersionTotal}종`,
       indent: 1,
       isParent: false,
       parentKey: "up",
@@ -169,8 +173,11 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
       sectionName,
       photocards,
       benefits,
+      photocardVersionTotal,
       photocardTotal,
       benefitTotal,
+      photocardTotalNeedsReview,
+      benefitTotalNeedsReview,
       storyCount: openContext.storyCount,
       snsItems: openContext.snsItems,
       createVmdTask,

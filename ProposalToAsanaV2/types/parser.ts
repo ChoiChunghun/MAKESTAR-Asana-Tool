@@ -10,6 +10,8 @@ export type ParseConfig = {
 export type ParsedItem = {
   name: string;
   count: number;
+  /** 숫자로 확정할 수 없을 때 UI/설명에 그대로 표시할 텍스트 (예: "수량 확인 필요") */
+  countLabel?: string;
   hasHandwriting?: boolean;
 };
 
@@ -127,8 +129,11 @@ export type ParsedPlanSummary = {
   sectionName: string;
   photocards: ParsedItem[];
   benefits: ParsedItem[];
+  photocardVersionTotal: number;
   photocardTotal: number;
   benefitTotal: number;
+  photocardTotalNeedsReview: boolean;
+  benefitTotalNeedsReview: boolean;
   storyCount: number;
   snsItems: string[];
   createVmdTask: boolean;

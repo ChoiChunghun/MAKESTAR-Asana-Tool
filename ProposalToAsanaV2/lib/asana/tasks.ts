@@ -20,6 +20,7 @@ import {
   buildYdnOpenDescription,
   buildYdnAdminRegDescription
 } from "@/lib/parser/descriptions";
+import { formatTotalCount } from "@/lib/parser/itemCounts";
 import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline";
 import { resolveVmdSubName } from "@/lib/parser/parseOpenContext";
 import { isValidGid } from "@/lib/parser/utils";
@@ -221,8 +222,16 @@ async function createMdTasks(ctx: TaskCreateContext): Promise<void> {
   const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "md");
   const mdName = title(rowMap, "md", `[${productCode}] MD`);
-  const pcName = title(rowMap, "pc", `[${productCode}] 포토카드 / ${summary.photocards.length}세트 총 ${summary.photocardTotal}종`);
-  const spName = title(rowMap, "sp", `[${productCode}] 특전 / ${summary.benefits.length}종 총 ${summary.benefitTotal}종`);
+  const pcName = title(
+    rowMap,
+    "pc",
+    `[${productCode}] 포토카드 / ${summary.photocards.length}세트 총 ${formatTotalCount(summary.photocardTotal, summary.photocardTotalNeedsReview)}`
+  );
+  const spName = title(
+    rowMap,
+    "sp",
+    `[${productCode}] 특전 / ${summary.benefits.length}종 총 ${formatTotalCount(summary.benefitTotal, summary.benefitTotalNeedsReview)}`
+  );
 
   // ── MD 부모: 상태(진행) + 태스크 구분 ───────────────────────────────────
   const mdPayload: AsanaTaskPayload = {
@@ -275,7 +284,7 @@ async function createUpdateTasks(ctx: TaskCreateContext): Promise<void> {
   const productCode = buildTaskProductCode(summary.productCode, request.derivative?.suffix);
   const dueFields = getTaskDueFields(request.plan.normalizedData, "update");
   const upName = title(rowMap, "up", `[${productCode}] 업데이트`);
-  const upSubName = title(rowMap, "upsub", `[${productCode}] 업데이트 / ${summary.photocardTotal}종`);
+  const upSubName = title(rowMap, "upsub", `[${productCode}] 업데이트 / ${summary.photocardVersionTotal}종`);
 
   // ── 업데이트 부모: 상태(진행) + 태스크 구분 ─────────────────────────────
   const upPayload: AsanaTaskPayload = {

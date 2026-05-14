@@ -1,4 +1,5 @@
 import type { OpenContext, ParsedItem } from "@/types/parser";
+import { formatItemCount } from "./itemCounts";
 import { HANDWRITING_KEYWORDS } from "./constants";
 import { hasKeyword } from "./utils";
 import { detectVenues, VENUE_DISPLAY, type VenueKey } from "./parseOpenContext";
@@ -11,7 +12,7 @@ export function buildPhotocardDescription(pcs: ParsedItem[]): string {
   let html = "<body><em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>";
   for (const pc of pcs) {
     const hw = hasKeyword(pc.name, HANDWRITING_KEYWORDS) ? "O" : "X";
-    html += `\n\n<strong>${esc(pc.name)} (${pc.count}종)</strong><ol>`;
+    html += `\n\n<strong>${esc(pc.name)} (${esc(formatItemCount(pc))})</strong><ol>`;
     html += '<li>스펙<ol type="a"><li>(55*85가 아닐 경우, 주문 상세 페이지 URL 또는 스펙 공유)</li></ol></li>';
     html += `<li>문의<ol type="a"><li>손그림, 글씨 사용 여부 : ${hw}</li></ol></li>`;
     html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
@@ -29,7 +30,7 @@ export function buildBenefitDescription(benefits: ParsedItem[]): string {
 
   for (const b of items) {
     const hw = b.hasHandwriting || hasKeyword(b.name, HANDWRITING_KEYWORDS) ? "O" : "X";
-    html += `\n\n<strong>${esc(b.name)} (${b.count}종)</strong><ol>`;
+    html += `\n\n<strong>${esc(b.name)} (${esc(formatItemCount(b))})</strong><ol>`;
     html += '<li>스펙<ol type="a"><li>주문 상세 페이지 URL</li><li>(또는 상품 스펙)</li></ol></li>';
     html += `<li>문의<ol type="a"><li>손그림, 글씨 사용 여부 : ${hw}</li></ol></li>`;
     html += '<li>자료<ol type="a"><li>URL 또는 MAS 위치</li></ol></li>';
@@ -49,8 +50,8 @@ export function buildUpdateDescription(pcs: ParsedItem[], benefits: ParsedItem[]
   html += "\n\n<strong>문의</strong><ol><li>블러 강도 <strong>(3)</strong>단계</li><li>(자료 수급 일정)</li></ol>";
   html += "\n\n<strong>공유, 요청</strong><ol><li>소속사 요청 사항, 디자인 컨셉, 아이디어 등 공유가 필요한 내용을 편하게 남겨주세요!</li></ol>";
   const items = [
-    ...pcs.map((pc) => `<li>${esc(pc.name)} (${pc.count}종)</li>`),
-    ...benefits.map((b) => `<li>${esc(b.name)} (${b.count}종)</li>`)
+    ...pcs.map((pc) => `<li>${esc(pc.name)} (${esc(formatItemCount(pc))})</li>`),
+    ...benefits.map((b) => `<li>${esc(b.name)} (${esc(formatItemCount(b))})</li>`)
   ];
   if (items.length) {
     html += `\n\n<strong>필요한 산출물</strong><ol>${items.join("")}</ol>`;

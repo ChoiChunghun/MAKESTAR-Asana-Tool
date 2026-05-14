@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { formatItemCount, formatTotalCount } from "@/lib/parser/itemCounts";
 import type { ParsedPlanSummary } from "@/types/parser";
 
 type Props = {
@@ -60,13 +61,19 @@ export function ParseSummary({ summary }: Props) {
   // 포토카드 줄별 표시
   const pcLines: string[] =
     photocards.length > 0
-      ? [...photocards.map((pc) => `${pc.name}  ${pc.count}종`), `총 ${summary.photocardTotal}종`]
+      ? [
+          ...photocards.map((pc) => `${pc.name}  ${formatItemCount(pc)}`),
+          `총 ${formatTotalCount(summary.photocardTotal, summary.photocardTotalNeedsReview)}`
+        ]
       : [];
 
   // 특전 줄별 표시
   const spLines: string[] =
     benefits.length > 0
-      ? [...benefits.map((b) => `${b.name}  ${b.count}종`), `총 ${summary.benefitTotal}종`]
+      ? [
+          ...benefits.map((b) => `${b.name}  ${formatItemCount(b)}`),
+          `총 ${formatTotalCount(summary.benefitTotal, summary.benefitTotalNeedsReview)}`
+        ]
       : [];
 
   // VMD 생성 – 알려진 장소명만 표기, 미등록 장소는 "생성"으로만 표시

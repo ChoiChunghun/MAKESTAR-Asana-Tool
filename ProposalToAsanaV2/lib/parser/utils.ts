@@ -69,3 +69,39 @@ export function generateRandomCode(length = 2): string {
   }
   return code;
 }
+
+/**
+ * 주변 특전/포카 문맥에서 멤버 수를 추정합니다.
+ * 주로 "멤버 랜덤" 항목의 실제 버전 수를 보정할 때 사용합니다.
+ */
+export function inferMemberCountFromContext(lines: string[], lineIdx: number): number {
+  const start = Math.max(0, lineIdx - 30);
+  const end = Math.min(lines.length, lineIdx + 10);
+  const counts: number[] = [];
+
+  for (let i = start; i < end; i++) {
+    if (i === lineIdx) continue;
+    const line = String(lines[i] || "").trim();
+    if (!line) continue;
+
+    const patterns = [
+      /총\s*(\d+)\s*종/,
+      /(\d+)\s*종\s*(?:중|랜덤)/,
+      /\((\d+)\s*종\)/
+    ];
+
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (!match) continue;
+      const count = parseInt(match[1], 10);
+      if (count >= 2 && count <= 30) counts.push(count);
+    }
+  }
+
+  if (counts.length === 0) return 0;
+
+  const freq: Record<number, number> = {};
+  for (const count of counts) freq[count] = (freq[count] || 0) + 1;
+
+  return Number(Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0]);
+}

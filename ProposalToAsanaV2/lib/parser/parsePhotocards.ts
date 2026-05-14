@@ -1,6 +1,6 @@
 import type { NormalizedPlanData, ParseConfig, ParsedItem } from "@/types/parser";
 import { EXCLUDE_KEYWORDS_PC, EXCLUDE_PATTERNS_PC, PC_NAME_PREFIX_STRIP } from "./constants";
-import { stopAtNotice } from "./utils";
+import { inferMemberCountFromContext, stopAtNotice } from "./utils";
 
 export function parsePhotocards(data: NormalizedPlanData, config?: ParseConfig): ParsedItem[] {
   const excludeKeywords = config?.pcExcludeKeywords ?? EXCLUDE_KEYWORDS_PC;
@@ -116,29 +116,4 @@ function extractPcCount(cell: string, lines: string[], lineIdx: number): number 
   if (fallback) return parseInt(fallback[1], 10);
 
   return 0;
-}
-
-/**
- * 주변 라인의 "(N종)" 패턴에서 멤버 수를 추정합니다.
- * 같은 파트 특전 블록에서 "포토카드 1매 (7종)" 처럼 멤버 단위로 명시된 수량을 찾아 반환합니다.
- */
-function inferMemberCountFromContext(lines: string[], lineIdx: number): number {
-  const start = Math.max(0, lineIdx - 30);
-  const end = Math.min(lines.length, lineIdx + 10);
-  const counts: number[] = [];
-
-  for (let i = start; i < end; i++) {
-    if (i === lineIdx) continue;
-    const m = lines[i].match(/\((\d+)\s*종\)/);
-    if (m) {
-      const n = parseInt(m[1]);
-      if (n >= 2 && n <= 30) counts.push(n); // 합리적 멤버 수 범위
-    }
-  }
-
-  if (counts.length === 0) return 0;
-  // 가장 자주 등장하는 값 반환
-  const freq: Record<number, number> = {};
-  for (const c of counts) freq[c] = (freq[c] || 0) + 1;
-  return Number(Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0]);
 }

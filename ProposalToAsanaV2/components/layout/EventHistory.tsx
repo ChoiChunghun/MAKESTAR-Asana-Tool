@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatItemCount } from "@/lib/parser/itemCounts";
 import type { ParsedPlanSummary } from "@/types/parser";
 
 export type HistoryEntry = {
@@ -114,88 +115,99 @@ export function EventHistory({ history, onClear, onUpdateEntry, token }: Props) 
       </div>
 
       <div className="space-y-2">
-        {history.map((entry) => (
-          <div
-            key={entry.id}
-            className="flex items-start justify-between p-3 rounded-lg bg-ms-bg border border-ms-border/50"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-ms-text text-sm font-medium truncate">{entry.sectionName}</p>
+        {history.map((entry) => {
+          const photocardText = (entry.summary.photocards ?? [])
+            .map((pc) => `${pc.name} (${formatItemCount(pc)})`)
+            .join(", ");
 
-              {/* 상품코드 인라인 편집 */}
-              <div className="flex items-center gap-1.5 mt-1">
-                {editingId === entry.id ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => commitEdit(entry)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitEdit(entry);
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                    className="ms-input text-xs py-0.5 px-1.5 h-6 w-44"
-                  />
-                ) : renaming === entry.id ? (
-                  <span className="text-ms-faint text-xs flex items-center gap-1">
-                    <span className="spinner-sm" />
-                    변경 중...
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    title="클릭하여 상품코드 수정 (Asana에도 반영됩니다)"
-                    onClick={() => startEdit(entry)}
-                    className="flex items-center gap-1.5 text-xs text-left group"
-                  >
-                    <span className="text-ms-muted group-hover:text-ms-text truncate max-w-[140px]">
-                      {entry.productCode ?? entry.summary.productCode ?? "—"}
-                    </span>
-                    <span className="text-ms-accent shrink-0">[상품 코드 변경]</span>
-                  </button>
-                )}
-                <span className="text-ms-faint text-xs">·</span>
-                <span className="text-ms-muted text-xs truncate">
-                  {entry.summary.eventLabels.join(", ")}
-                </span>
-              </div>
-
-              {/* 오류 메시지 */}
-              {errorId === entry.id && (
-                <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
-                  <span>⚠</span>
-                  <span>{errorMsg} 디자인센터(최충훈)에게 문의하세요.</span>
-                  <button
-                    type="button"
-                    onClick={() => setErrorId(null)}
-                    className="ml-1 text-ms-faint hover:text-ms-text"
-                  >
-                    ×
-                  </button>
-                </p>
-              )}
-
-              <p className="text-ms-faint text-xs mt-0.5">
-                {entry.projectName} ·{" "}
-                {new Date(entry.createdAt).toLocaleString("ko-KR", {
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
-              </p>
-            </div>
-            <a
-              href={`https://app.asana.com/0/${entry.projectGid}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-3 text-ms-accent text-xs hover:underline shrink-0 mt-0.5"
+          return (
+            <div
+              key={entry.id}
+              className="flex items-start justify-between p-3 rounded-lg bg-ms-bg border border-ms-border/50"
             >
-              Asana →
-            </a>
-          </div>
-        ))}
+              <div className="min-w-0 flex-1">
+                <p className="text-ms-text text-sm font-medium truncate">{entry.sectionName}</p>
+
+                {/* 상품코드 인라인 편집 */}
+                <div className="flex items-center gap-1.5 mt-1">
+                  {editingId === entry.id ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => commitEdit(entry)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit(entry);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      className="ms-input text-xs py-0.5 px-1.5 h-6 w-44"
+                    />
+                  ) : renaming === entry.id ? (
+                    <span className="text-ms-faint text-xs flex items-center gap-1">
+                      <span className="spinner-sm" />
+                      변경 중...
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      title="클릭하여 상품코드 수정 (Asana에도 반영됩니다)"
+                      onClick={() => startEdit(entry)}
+                      className="flex items-center gap-1.5 text-xs text-left group"
+                    >
+                      <span className="text-ms-muted group-hover:text-ms-text truncate max-w-[140px]">
+                        {entry.productCode ?? entry.summary.productCode ?? "—"}
+                      </span>
+                      <span className="text-ms-accent shrink-0">[상품 코드 변경]</span>
+                    </button>
+                  )}
+                  <span className="text-ms-faint text-xs">·</span>
+                  <span className="text-ms-muted text-xs truncate">
+                    {entry.summary.eventLabels.join(", ")}
+                  </span>
+                </div>
+
+                {/* 오류 메시지 */}
+                {errorId === entry.id && (
+                  <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                    <span>⚠</span>
+                    <span>{errorMsg} 디자인센터(최충훈)에게 문의하세요.</span>
+                    <button
+                      type="button"
+                      onClick={() => setErrorId(null)}
+                      className="ml-1 text-ms-faint hover:text-ms-text"
+                    >
+                      ×
+                    </button>
+                  </p>
+                )}
+
+                <p className="text-ms-faint text-xs mt-0.5">
+                  {entry.projectName} ·{" "}
+                  {new Date(entry.createdAt).toLocaleString("ko-KR", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </p>
+                {photocardText && (
+                  <p className="text-ms-faint text-xs mt-1 truncate" title={photocardText}>
+                    포카: {photocardText}
+                  </p>
+                )}
+              </div>
+              <a
+                href={`https://app.asana.com/0/${entry.projectGid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-3 text-ms-accent text-xs hover:underline shrink-0 mt-0.5"
+              >
+                Asana →
+              </a>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
