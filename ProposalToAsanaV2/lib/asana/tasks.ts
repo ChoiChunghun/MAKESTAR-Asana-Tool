@@ -291,8 +291,8 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
       ? {
           html_notes:
             "<body>메이크스타에서 오픈한 이벤트를 특정 국가를 타겟으로 추가 작업할 때 사용하는 태스크 입니다!" +
-            `<ul><li>SNS 발행 후 &#x201C;완료&#x201D; 처리 부탁드립니다!</li>` +
-            `<li>&#x201C;이벤트 구분&#x201D; 필드 값을 입력해 주세요! <em>(중복 선택 가능)</em></li></ul></body>`
+            `<ul><li>SNS 발행 후 "완료" 처리 부탁드립니다!</li>` +
+            `<li>"이벤트 구분" 필드 값을 입력해 주세요! <em>(중복 선택 가능)</em></li></ul></body>`
         }
       : { notes: '페이지 작업 후 "완료" 처리 부탁드립니다!' }),
     custom_fields: await buildBaseProgressFields(projectGid, TASK_TYPE_NAME_OPEN, token)
@@ -365,7 +365,8 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 
   // ── 오픈 디자인 서브: 마지막 생성 → Asana 최상단 표시 ───────────────────
   // 생성자 ≠ 디자이너인 경우 생성자를 협업 참여자에 자동 포함
-  if (isEnabled(rowMap, "opendesign")) {
+  // 파생 모드에서는 프리뷰 체크 여부와 무관하게 항상 SNS 오픈 디자인 생성
+  if (isDerivative || isEnabled(rowMap, "opendesign")) {
     const designPayload: AsanaTaskPayload = {
       name: designName,
       parent: openGid,
