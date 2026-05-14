@@ -77,6 +77,8 @@ type EventState = {
 function normalizeDerivativePreviewTitle(title: string): string {
   return title
     .replace(/^\[([^\]]+?)(?:_(?:CN|NAEU|APAC|JP))?\]/, "[$1]")
+    .replace(/(\])\s*웨이디엔\s+오픈\s*디자인$/, "$1 오픈 디자인")
+    .replace(/(\])\s*웨이디엔\s+오픈$/, "$1 오픈")
     .replace(/(\])\s*SNS\s+오픈\s*디자인$/, "$1 오픈 디자인")
     .replace(/(\])\s*SNS\s+오픈$/, "$1 오픈");
 }

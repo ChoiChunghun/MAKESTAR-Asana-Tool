@@ -107,7 +107,9 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
     {
       key: "open",
       label: "오픈",
-      title: `[${productCode}] 오픈`,
+      title: openContext.isYdn
+        ? `[${productCode}] 웨이디엔 오픈`
+        : `[${productCode}] 오픈`,
       indent: 0,
       isParent: true,
       available: true,
@@ -116,7 +118,9 @@ export function buildPreviewData(data: NormalizedPlanData, config?: ParseConfig,
     {
       key: "opendesign",
       label: "└ 오픈 디자인",
-      title: `[${productCode}] 오픈 디자인`,
+      title: openContext.isYdn
+        ? `[${productCode}] 웨이디엔 오픈 디자인`
+        : `[${productCode}] 오픈 디자인`,
       indent: 1,
       isParent: false,
       parentKey: "open",

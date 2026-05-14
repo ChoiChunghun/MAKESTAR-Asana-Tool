@@ -91,6 +91,44 @@ export function buildOpenDescription(ctx: OpenContext): string {
 }
 
 /**
+ * 웨이디엔(YDN) 오픈 디자인 서브태스크 설명
+ */
+export function buildYdnOpenDescription(ctx: OpenContext): string {
+  const planLink = ctx.planningUrl
+    ? `<a href="${esc(ctx.planningUrl)}">URL</a>`
+    : "URL";
+
+  return `<body>${[
+    `<strong>기획서</strong><ol><li>${planLink}</li></ol>`,
+    "<strong>문의</strong><ol>" +
+      `<li>통이미지 작업 필요 여부 : ${esc(ctx.compositeImageNeeded)}</li>` +
+      "<li>포카, 특전 블러 노출 여부 : X</li>" +
+      "</ol>",
+    "<strong>공유, 요청</strong><ol><li>일정, 디자인 컨셉, 제약 사항, 소속사 요청 사항 등 필요한 내용을 편하게 남겨주세요</li></ol>",
+    '<em>*아래 케이스 중 필요없는 것을 지워주세요!</em>',
+    "<strong>필요한 산출물 (Case01. 웨이디엔 단독 + 소속사 요청)</strong>" +
+      "<ol>" +
+      "<li>웨이디엔 배너 1종</li>" +
+      "<li>중국어 스토리 통이미지 1종</li>" +
+      "<li>SNS 1종<ol type=\"a\"><li>중국어 스토리 통이미지 하단 유의사항 제거한 것</li></ol></li>" +
+      "</ol>",
+    "<strong>필요한 산출물 (Case02. 웨이디엔 단독) *소속사 별도 요청 X</strong>" +
+      "<ol>" +
+      "<li>웨이디엔 배너 1종</li>" +
+      "<li>SNS (n)종<ol type=\"a\"><li>메인</li><li>이벤트 안내</li><li>특전 A</li><li>(특전 B)</li></ol></li>" +
+      "</ol>",
+    "<strong>필요한 산출물 (Case03. 웨이디엔 + 메이크스타 + 소속사 요청)</strong>" +
+      "<ol>" +
+      "<li>웨이디엔 배너 1종</li>" +
+      "<li>메이크스타 배너 3종</li>" +
+      "<li>스토리 통이미지 4종 (국, 영, 중, 일)</li>" +
+      "<li>SNS (n)종<ol type=\"a\"><li>(언어) 스토리 통이미지 하단 유의사항 제거한 것</li></ol></li>" +
+      "</ol>",
+    "<em>*더 필요한 산출물은 추가, 사용하지 않는 산출물은 삭제해주세요!</em>"
+  ].join("\n")}</body>`;
+}
+
+/**
  * 파생 모드 — "SNS 오픈 디자인" 서브태스크 설명
  * 국가별 SNS 채널 선택 + 블러 여부 + 파생된 오픈 산출물 목록
  */

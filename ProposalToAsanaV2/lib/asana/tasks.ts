@@ -17,6 +17,7 @@ import {
   buildSnsOpenDescription,
   buildUpdateDescription,
   buildVmdDescription,
+  buildYdnOpenDescription,
   buildYdnAdminRegDescription
 } from "@/lib/parser/descriptions";
 import { getTaskDueFields, getWinnerDueFields } from "@/lib/parser/parseDeadline";
@@ -314,10 +315,14 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
 
   const openName = title(rowMap, "open", isDerivative
     ? `[${productCode}] SNS 오픈`
-    : `[${productCode}] 오픈`);
+    : openContext.isYdn
+      ? `[${productCode}] 웨이디엔 오픈`
+      : `[${productCode}] 오픈`);
   const designName = title(rowMap, "opendesign", isDerivative
     ? `[${productCode}] SNS 오픈 디자인`
-    : `[${productCode}] 오픈 디자인`);
+    : openContext.isYdn
+      ? `[${productCode}] 웨이디엔 오픈 디자인`
+      : `[${productCode}] 오픈 디자인`);
 
   // ── 오픈 부모: 상태(진행) + 태스크 구분 + 이벤트 구분 ───────────────────
   const openPayload: AsanaTaskPayload = {
@@ -404,7 +409,9 @@ async function createOpenTasks(ctx: TaskCreateContext): Promise<void> {
   if (isDerivative || isEnabled(rowMap, "opendesign")) {
     const designHtmlNotes = isDerivative
       ? buildSnsOpenDescription(openContext)
-      : buildOpenDescription(openContext);
+      : openContext.isYdn
+        ? buildYdnOpenDescription(openContext)
+        : buildOpenDescription(openContext);
     const designPayload: AsanaTaskPayload = {
       name: designName,
       parent: openGid,
@@ -544,6 +551,8 @@ function buildTaskProductCode(productCode: string, suffix?: string): string {
 function normalizeTaskPlacementName(name: string): string {
   return name
     .replace(/^\[([^\]]+?)(?:_(?:CN|NAEU|APAC|JP))?\]/, "[$1]")
+    .replace(/\s+웨이디엔\s+오픈\s+디자인/g, " 오픈 디자인")
+    .replace(/\s+웨이디엔\s+오픈/g, " 오픈")
     .replace(/\s+SNS\s+오픈/g, " 오픈")
     .replace(/\s+/g, " ")
     .trim()
